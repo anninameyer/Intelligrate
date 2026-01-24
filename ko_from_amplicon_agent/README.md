@@ -8,4 +8,5 @@
 ## Efficiency updates (2026-01-24)
 - Inner CV skips secondary metrics when their weights are zero.
 - Inner CV caches validation ground-truth distance matrices per split.
+- Inner CV caches metric-learning transforms and latent SVDs per split.
 - Supervised metric learning samples up to `max_pairs` without enumerating all pairs.

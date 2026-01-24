@@ -178,6 +178,8 @@ def nested_cv_knn_metric_latent_on_embedding(
                     "Y_iva_tss": Y_iva_tss,
                     "Dy_iva": Dy_iva,
                     "w_feat": w_feat,
+                    "metric_cache": {},
+                    "latent_cache": {},
                 }
             )
         best = None
@@ -193,32 +195,44 @@ def nested_cv_knn_metric_latent_on_embedding(
                             for cached in inner_cache:
                                 itr_ids = cached["itr_ids"]
                                 iva_ids = cached["iva_ids"]
-                                Z_itr0 = cached["Z_itr0"]
-                                Z_iva0 = cached["Z_iva0"]
                                 Y_itr = cached["Y_itr"]
                                 Y_iva = cached["Y_iva"]
                                 Y_iva_tss = cached["Y_iva_tss"]
                                 Dy_iva = cached["Dy_iva"]
                                 w_feat = cached["w_feat"]
 
-                                if use_metric_learning:
-                                    X_itr_df = pd.DataFrame(Z_itr0, index=itr_ids)
-                                    w_in = fit_supervised_diag_metric(
-                                        X_clr=X_itr_df,
-                                        Y_clr=Y_itr,
-                                        max_pairs=int(metric_max_pairs),
-                                        random_state=int(seed + 3000 + fold),
-                                        ridge=float(metric_ridge),
+                                mkey = float(metric_ridge)
+                                metric_cached = cached["metric_cache"].get(mkey)
+                                if metric_cached is None:
+                                    Z_itr0 = cached["Z_itr0"]
+                                    Z_iva0 = cached["Z_iva0"]
+                                    if use_metric_learning:
+                                        X_itr_df = pd.DataFrame(Z_itr0, index=itr_ids)
+                                        w_in = fit_supervised_diag_metric(
+                                            X_clr=X_itr_df,
+                                            Y_clr=Y_itr,
+                                            max_pairs=int(metric_max_pairs),
+                                            random_state=int(seed + 3000 + fold),
+                                            ridge=float(metric_ridge),
+                                        )
+                                        Z_itr = Z_itr0 * np.sqrt(w_in[None, :])
+                                        Z_iva = Z_iva0 * np.sqrt(w_in[None, :])
+                                    else:
+                                        Z_itr, Z_iva = Z_itr0, Z_iva0
+
+                                    scale = median_nn_distance(
+                                        Z_itr, k=min(int(tau_scale_k_nn), Z_itr.shape[0] - 1)
                                     )
-                                    Z_itr = Z_itr0 * np.sqrt(w_in[None, :])
-                                    Z_iva = Z_iva0 * np.sqrt(w_in[None, :])
-                                else:
-                                    Z_itr, Z_iva = Z_itr0, Z_iva0
+                                    nn_min_inner = cdist(Z_iva, Z_itr).min(axis=1)
+                                    metric_cached = {"Z_itr": Z_itr, "Z_iva": Z_iva, "scale": scale, "nn_min": nn_min_inner}
+                                    cached["metric_cache"][mkey] = metric_cached
 
-                                scale = median_nn_distance(Z_itr, k=min(int(tau_scale_k_nn), Z_itr.shape[0] - 1))
+                                Z_itr = metric_cached["Z_itr"]
+                                Z_iva = metric_cached["Z_iva"]
+                                scale = metric_cached["scale"]
+                                nn_min_inner = metric_cached["nn_min"]
+
                                 tau_abs = float(tau_mult) * float(scale)
-
-                                nn_min_inner = cdist(Z_iva, Z_itr).min(axis=1)
 
                                 if ood_tau_inflate:
                                     z_ood = float(np.median(nn_min_inner)) / (float(scale) + 1e-12)
@@ -227,10 +241,19 @@ def nested_cv_knn_metric_latent_on_embedding(
                                     tau_abs_eff = tau_abs
 
                                 if int(yk) > 0:
-                                    svd, col_mean = fit_y_latent_svd(
-                                        Y_itr, k=int(yk), random_state=int(seed + 4000 + fold)
-                                    )
-                                    T_itr = encode_y_latent(Y_itr, svd, col_mean)
+                                    yk_key = int(yk)
+                                    latent_cached = cached["latent_cache"].get(yk_key)
+                                    if latent_cached is None:
+                                        svd, col_mean = fit_y_latent_svd(
+                                            Y_itr, k=int(yk), random_state=int(seed + 4000 + fold)
+                                        )
+                                        T_itr = encode_y_latent(Y_itr, svd, col_mean)
+                                        latent_cached = {"svd": svd, "col_mean": col_mean, "T_itr": T_itr}
+                                        cached["latent_cache"][yk_key] = latent_cached
+                                    else:
+                                        svd = latent_cached["svd"]
+                                        col_mean = latent_cached["col_mean"]
+                                        T_itr = latent_cached["T_itr"]
                                     T_hat = knn_kernel_predict_tau_abs(
                                         Z_tr=Z_itr,
                                         Z_te=Z_iva,
