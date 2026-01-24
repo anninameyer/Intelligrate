@@ -1,0 +1,21 @@
+cat >> .gitignore <<'EOF'
+
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+
+# Results (optional: keep if you want to version results)
+results/*.tsv
+results/*.csv
+results/*.json
+EOF
