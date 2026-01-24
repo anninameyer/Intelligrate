@@ -2,6 +2,11 @@
 Learn a model to predict KO profiles from ASV_kmers using 95 paired amplicon–shotgun samples.
 Then reuse the trained pipeline (including preprocessing + embedding + model hyperparameters) to infer KOs for additional samples where only ASV_kmers are available.
 
+# important rules
+- Do not run destructive commands (rm, mv on data, sudo, chmod -R, etc.).
+- Do not access files outside this repository (Intelligrate) and do not write anything outside this repository.
+- Do not install system packages; only use the current venv.
+
 # Primary objective (must maximize)
 Maximize OBJECTIVE_DM_SPEARMAN_MEAN printed by `make score`:
 - Spearman correlation between upper triangles of sample–sample Aitchison distance matrices in CLR space.
@@ -45,7 +50,6 @@ Allowed efficiency techniques:
 - add a "fast mode" config for quick iteration (smaller folds/grids) BUT final results must be confirmed with the full default config
 - parallelization is allowed if deterministic (fixed seeds), and results must remain reproducible
 
-# Workflow rules
 # Workflow rules (strict)
 - Use `make score_fast` for iteration when available; only validate candidates with `make score`.
 - After each experimental change:
