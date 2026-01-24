@@ -25,6 +25,15 @@ These may be computed and logged, but must not replace the primary objective unl
 # Benchmarking against PICRUSt2 (important)
 - If a PICRUSt2 output file is provided, compute the same primary objective on it (DM Spearman in CLR space) for the same samples and comparable feature set.
 - The aim is to outperform PICRUSt2 on the primary objective and to have plausible pathway-level representation.
+- PICRUSt2 comparison must NOT intersect KO sets.
+  Evaluate using KO-union: U = KOs_truth ∪ KOs_pred.
+  Reindex both truth and prediction to U (fill missing with 0), then TSS→CLR, then compute Aitchison DM and upper-triangle Spearman.
+  This penalizes spurious KOs and missing KOs.
+- Log in summary JSON:
+  - picrust2_dm_union
+  - model_dm_union
+  - delta_union = model_dm_union - picrust2_dm_union
+
 
 # Efficiency requirement (critical for agentic iteration)
 Current end-to-end runtime is ~770s per `make score`. Improve runtime substantially without violating nested CV or changing the primary objective.
@@ -37,13 +46,28 @@ Allowed efficiency techniques:
 - parallelization is allowed if deterministic (fixed seeds), and results must remain reproducible
 
 # Workflow rules
-- Make small, reversible changes.
-- After each change: run `make score` (or `make score_fast` if it exists) and record the result.
+# Workflow rules (strict)
+- Use `make score_fast` for iteration when available; only validate candidates with `make score`.
+- After each experimental change:
+  1) Run `make score_fast` (or `make score` if fast mode not available).
+  2) Log the result locally (append to results/experiments_log.md).
+  3) If the result is worse, revert code changes (git restore) and do NOT commit/push.
+  4) If the result is better (higher model_dm_union; or same score with clearly lower runtime), then:
+     - run `make score` to confirm on the full config,
+     - commit with a message including model_dm_union, picrust2_dm_union, delta_union, runtime,
+     - push to origin.
 - Keep a short changelog in results/ (or use git commit messages) indicating score and runtime.
 - Keep the solution simple and packageable. Prefer simpler models over complex ones if performance is comparable.
 - Do not modify data files in data/.
 - Do not use external training data.
 - Document all methodological changes and any new objectives/metrics in README.md.
+
+# Stop conditions
+Stop and write a report (in a new markdown file under results/ or REPORT.md) when:
+- model_dm_union >= 0.60 on `make score` (full config), AND
+- model_dm_union > picrust2_dm_union (i.e., delta_union > 0).
+The report must include: best config, runtime, what changed, and whether further optimization seems promising.
+
 
 # Model exploration guidance
 Start by improving and de-leaking the current KNN+embedding baseline.
