@@ -23,7 +23,7 @@ model:
   pseudocount_y: 0.0000005
 
   neigh_k_grid: [10, 12, 14, 16]
-  tau_mult_grid: [1.0, 2.0, 4.0]
+  tau_mult_grid: [0.5, 1.0, 2.0, 4.0]
   lam_grid: [0.0]
   y_latent_k_grid: [10, 20, 50]
 
