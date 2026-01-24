@@ -5,13 +5,24 @@ import json
 import time
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import yaml
+from scipy.spatial.distance import cdist
 
 from .cv_knn import nested_cv_knn_metric_latent_on_embedding
-from .embedding import fit_x_embedding_svd_clr
+from .embedding import fit_x_embedding_svd_clr, transform_x_embedding_svd_clr
+from .knn_core import (
+    apply_ood_shrinkage,
+    decode_y_latent,
+    encode_y_latent,
+    fit_supervised_diag_metric,
+    fit_y_latent_svd,
+    knn_kernel_predict_tau_abs,
+    median_nn_distance,
+)
 from .metrics import aitchison_dm, corr_upper_triangle
-from .transforms import clr_rows, keep_by_prevalence, tss_rows
+from .transforms import clr_rows, clr_to_comp, keep_by_prevalence, tss_rows
 
 
 def _read_table(path: Path) -> pd.DataFrame:
@@ -44,6 +55,127 @@ def _dm_spearman_union(
     truth_clr = truth_clr.loc[good]
     pred_clr = pred_clr.loc[good]
     return float(corr_upper_triangle(aitchison_dm(truth_clr), aitchison_dm(pred_clr), method="spearman"))
+
+
+def _mode_or_default(series: pd.Series | None, default):
+    if series is None:
+        return default
+    vals = series.dropna()
+    if vals.empty:
+        return default
+    mode = vals.mode()
+    return mode.iloc[0] if len(mode) else default
+
+
+def _knn_kernel_predict_tau_abs_from_distance(
+    D: np.ndarray,
+    T_tr: np.ndarray,
+    *,
+    k: int,
+    tau_abs: float,
+    lam: float,
+) -> np.ndarray:
+    k_eff = min(int(k), D.shape[1])
+    idx = np.argpartition(D, kth=k_eff - 1, axis=1)[:, :k_eff]
+
+    out = np.zeros((D.shape[0], T_tr.shape[1]), dtype=float)
+    tbar = T_tr.mean(axis=0, keepdims=True)
+
+    tau = float(max(tau_abs, 1e-12))
+    lam = float(lam)
+
+    for i in range(D.shape[0]):
+        jj = idx[i]
+        di = D[i, jj]
+        w = np.exp(-(di**2) / (2.0 * tau**2))
+        sw = w.sum()
+        if sw <= 0 or not np.isfinite(sw):
+            pred = tbar[0]
+        else:
+            pred = (w[:, None] * T_tr[jj]).sum(axis=0) / sw
+        out[i] = (1.0 - lam) * pred + lam * tbar[0]
+
+    return out
+
+
+def _full_fit_knn_predict(
+    X: pd.DataFrame,
+    Y: pd.DataFrame,
+    *,
+    embed: dict,
+    min_prev_y_abs: int,
+    y_detect_threshold: float,
+    pseudocount_y: float,
+    neigh_k: int,
+    tau_mult: float,
+    lam: float,
+    y_latent_k: int,
+    use_metric_learning: bool,
+    metric_max_pairs: int,
+    metric_ridge: float,
+    tau_scale_k_nn: int,
+    ood_shrink: bool,
+    ood_lam_base: float,
+    ood_lam_cap: float,
+    ood_tau_inflate: bool,
+    ood_tau_gamma: float,
+    seed: int,
+) -> pd.DataFrame:
+    y_keep = keep_by_prevalence(Y, min_prev_abs=int(min_prev_y_abs), detect_threshold=float(y_detect_threshold))
+    Y0 = Y.loc[:, y_keep]
+    Y_tss = tss_rows(Y0).fillna(0.0)
+    Y_clr = clr_rows(Y_tss, pseudocount=float(pseudocount_y))
+
+    Z = transform_x_embedding_svd_clr(X, embed)
+    if use_metric_learning:
+        X_df = pd.DataFrame(Z, index=Y_clr.index)
+        w = fit_supervised_diag_metric(
+            X_clr=X_df,
+            Y_clr=Y_clr,
+            max_pairs=int(metric_max_pairs),
+            random_state=int(seed + 9000),
+            ridge=float(metric_ridge),
+        )
+        Z = Z * np.sqrt(w[None, :])
+
+    scale = median_nn_distance(Z, k=min(int(tau_scale_k_nn), Z.shape[0] - 1))
+    tau_abs = float(tau_mult) * float(scale)
+
+    D = cdist(Z, Z, metric="euclidean")
+    np.fill_diagonal(D, np.inf)
+    nn_min = D.min(axis=1)
+
+    if ood_tau_inflate:
+        z_ood = float(np.median(nn_min)) / (float(scale) + 1e-12)
+        tau_abs_eff = tau_abs * (1.0 + float(ood_tau_gamma) * z_ood)
+    else:
+        tau_abs_eff = tau_abs
+
+    if int(y_latent_k) > 0:
+        svd, col_mean = fit_y_latent_svd(Y_clr, k=int(y_latent_k), random_state=int(seed + 9100))
+        T_tr = encode_y_latent(Y_clr, svd, col_mean)
+        T_hat = _knn_kernel_predict_tau_abs_from_distance(
+            D, T_tr, k=int(neigh_k), tau_abs=float(tau_abs_eff), lam=float(lam)
+        )
+        Yhat_arr = decode_y_latent(T_hat, svd, col_mean)
+    else:
+        T_tr = Y_clr.to_numpy(dtype=float)
+        Yhat_arr = _knn_kernel_predict_tau_abs_from_distance(
+            D, T_tr, k=int(neigh_k), tau_abs=float(tau_abs_eff), lam=float(lam)
+        )
+        Yhat_arr = Yhat_arr - Yhat_arr.mean(axis=1, keepdims=True)
+
+    if ood_shrink:
+        Yhat_arr = apply_ood_shrinkage(
+            Yhat_clr_arr=Yhat_arr,
+            Ytr_clr=Y_clr,
+            nn_min=nn_min,
+            lam_base=float(ood_lam_base),
+            lam_cap=float(ood_lam_cap),
+        )
+        Yhat_arr = Yhat_arr - Yhat_arr.mean(axis=1, keepdims=True)
+
+    return pd.DataFrame(Yhat_arr, index=Y_clr.index, columns=y_keep)
 
 
 def main():
@@ -119,6 +251,54 @@ def main():
         picrust2_dm_union = _dm_spearman_union(Y, picrust2, pseudocount=union_pseudo)
         delta_union = float(model_dm_union - picrust2_dm_union)
 
+    # Full-fit deployment score (fit on all paired samples using mode of CV-selected params)
+    def _col_or_none(name: str):
+        return folds[name] if name in folds.columns else None
+
+    model_cfg = cfg["model"]
+    full_params = {
+        "neigh_k": int(
+            _mode_or_default(_col_or_none("neigh_k"), int(model_cfg.get("neigh_k_grid", [10])[0]))
+        ),
+        "tau_mult": float(
+            _mode_or_default(_col_or_none("tau_mult"), float(model_cfg.get("tau_mult_grid", [1.0])[0]))
+        ),
+        "lam": float(_mode_or_default(_col_or_none("lam"), float(model_cfg.get("lam_grid", [0.0])[0]))),
+        "y_latent_k": int(
+            _mode_or_default(_col_or_none("y_latent_k"), int(model_cfg.get("y_latent_k_grid", [0])[0]))
+        ),
+        "metric_ridge": float(
+            _mode_or_default(
+                _col_or_none("metric_ridge"), float(model_cfg.get("metric_ridge_grid", [1.0])[0])
+            )
+        ),
+    }
+
+    full_fit_clr = _full_fit_knn_predict(
+        X=X,
+        Y=Y,
+        embed=embed,
+        min_prev_y_abs=int(model_cfg["min_prev_y_abs"]),
+        y_detect_threshold=float(model_cfg["y_detect_threshold"]),
+        pseudocount_y=float(model_cfg["pseudocount_y"]),
+        neigh_k=int(full_params["neigh_k"]),
+        tau_mult=float(full_params["tau_mult"]),
+        lam=float(full_params["lam"]),
+        y_latent_k=int(full_params["y_latent_k"]),
+        use_metric_learning=bool(model_cfg["use_metric_learning"]),
+        metric_max_pairs=int(model_cfg["metric_max_pairs"]),
+        metric_ridge=float(full_params["metric_ridge"]),
+        tau_scale_k_nn=int(model_cfg.get("tau_scale_k_nn", 10)),
+        ood_shrink=bool(model_cfg.get("ood_shrink", False)),
+        ood_lam_base=float(model_cfg.get("ood_lam_base", 0.1)),
+        ood_lam_cap=float(model_cfg.get("ood_lam_cap", 0.8)),
+        ood_tau_inflate=bool(model_cfg.get("ood_tau_inflate", False)),
+        ood_tau_gamma=float(model_cfg.get("ood_tau_gamma", 1.0)),
+        seed=int(cfg["cv"]["seed"]),
+    )
+    full_fit_tss = clr_to_comp(full_fit_clr)
+    full_fit_dm_union = _dm_spearman_union(Y, full_fit_tss, pseudocount=union_pseudo)
+
     run = {
         "objective_dm_spearman_mean": dm_mean,
         "objective_dm_spearman_std": dm_std,
@@ -126,6 +306,8 @@ def main():
         "model_dm_union": float(model_dm_union),
         "picrust2_dm_union": float(picrust2_dm_union) if picrust2_dm_union is not None else None,
         "delta_union": float(delta_union) if delta_union is not None else None,
+        "full_fit_dm_union": float(full_fit_dm_union),
+        "full_fit_params": full_params,
         "n_samples": int(len(common)),
         "runtime_sec": float(dt),
         "config": cfg,
@@ -140,6 +322,7 @@ def main():
     print(f"OBJECTIVE_DM_SPEARMAN_MEAN={dm_mean:.6f}")
     print(f"OOF_DM_SPEARMAN={float(oof_dm):.6f}")
     print(f"MODEL_DM_UNION={float(model_dm_union):.6f}")
+    print(f"FULL_FIT_DM_UNION={float(full_fit_dm_union):.6f}")
     if picrust2_dm_union is not None:
         print(f"PICRUST2_DM_UNION={float(picrust2_dm_union):.6f}")
         print(f"DELTA_UNION={float(delta_union):.6f}")
