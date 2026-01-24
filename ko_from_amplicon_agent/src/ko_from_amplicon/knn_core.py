@@ -89,15 +89,19 @@ def fit_supervised_diag_metric(
     Zy = Y_clr.to_numpy(dtype=float)
 
     n, p = Zx.shape
-    all_pairs = np.array([(i, j) for i in range(n) for j in range(i + 1, n)], dtype=int)
-    if all_pairs.shape[0] > int(max_pairs):
-        sel = rng.choice(all_pairs.shape[0], size=int(max_pairs), replace=False)
-        pairs = all_pairs[sel]
+    total_pairs = n * (n - 1) // 2
+    max_pairs = int(max_pairs)
+    if max_pairs >= total_pairs:
+        i, j = np.triu_indices(n, k=1)
     else:
-        pairs = all_pairs
-
-    i = pairs[:, 0]
-    j = pairs[:, 1]
+        # Sample pair indices uniformly without enumerating all pairs.
+        k_idx = rng.choice(total_pairs, size=max_pairs, replace=False)
+        counts = np.arange(n - 1, 0, -1)
+        cum = np.cumsum(counts)
+        i = np.searchsorted(cum, k_idx, side="right")
+        prev = np.where(i == 0, 0, cum[i - 1])
+        offset = k_idx - prev
+        j = i + 1 + offset
     dx = Zx[i] - Zx[j]
     dy = Zy[i] - Zy[j]
 

@@ -2,6 +2,7 @@ data:
   x_full: "X_kmers_full.tsv"
   x: "X_kmers.tsv"
   y: "Y_kos.tsv"
+  picrust2: "picrust2_kos.tsv"
   ko_to_superclass: "ko_to_superclass.tsv"
 
 cv:

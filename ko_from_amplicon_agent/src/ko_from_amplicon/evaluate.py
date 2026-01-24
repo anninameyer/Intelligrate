@@ -29,6 +29,23 @@ def _read_ko_to_superclass(path: Path) -> dict:
     return dict(zip(df[ko_col].astype(str), df[sc_col].astype(str)))
 
 
+def _dm_spearman_union(
+    truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, pseudocount: float
+) -> float:
+    common = truth_tss.index.intersection(pred_tss.index)
+    truth = truth_tss.loc[common]
+    pred = pred_tss.loc[common]
+    union_cols = truth.columns.union(pred.columns)
+    truth_u = truth.reindex(columns=union_cols, fill_value=0.0)
+    pred_u = pred.reindex(columns=union_cols, fill_value=0.0)
+    truth_clr = clr_rows(tss_rows(truth_u), pseudocount=pseudocount)
+    pred_clr = clr_rows(tss_rows(pred_u), pseudocount=pseudocount)
+    good = truth_clr.notna().all(axis=1) & pred_clr.notna().all(axis=1)
+    truth_clr = truth_clr.loc[good]
+    pred_clr = pred_clr.loc[good]
+    return float(corr_upper_triangle(aitchison_dm(truth_clr), aitchison_dm(pred_clr), method="spearman"))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=str, default="configs/default.yaml")
@@ -45,11 +62,15 @@ def main():
     X = _read_table(data_dir / cfg["data"]["x"])
     Y = _read_table(data_dir / cfg["data"]["y"])
     ko_to_super = _read_ko_to_superclass(data_dir / cfg["data"]["ko_to_superclass"])
+    picrust2_path = cfg["data"].get("picrust2")
+    picrust2 = _read_table(data_dir / picrust2_path) if picrust2_path else None
 
     # Align samples (paired set)
     common = X.index.intersection(Y.index)
     X = X.loc[common].sort_index()
     Y = Y.loc[common].sort_index()
+    if picrust2 is not None:
+        picrust2 = picrust2.loc[picrust2.index.intersection(common)].sort_index()
 
     # Embedding fit (simple baseline: fit once on X_full)
     embed = fit_x_embedding_svd_clr(
@@ -89,10 +110,22 @@ def main():
     P_clr = P_clr.loc[good]
     oof_dm = corr_upper_triangle(aitchison_dm(Y_clr), aitchison_dm(P_clr), method="spearman")
 
+    # KO-union DM Spearman (model OOF vs truth; and PICRUSt2 vs truth if provided)
+    union_pseudo = float(cfg["score"]["pseudocount_y"])
+    model_dm_union = _dm_spearman_union(Y, oof_tss, pseudocount=union_pseudo)
+    picrust2_dm_union = None
+    delta_union = None
+    if picrust2 is not None:
+        picrust2_dm_union = _dm_spearman_union(Y, picrust2, pseudocount=union_pseudo)
+        delta_union = float(model_dm_union - picrust2_dm_union)
+
     run = {
         "objective_dm_spearman_mean": dm_mean,
         "objective_dm_spearman_std": dm_std,
         "oof_dm_spearman": float(oof_dm),
+        "model_dm_union": float(model_dm_union),
+        "picrust2_dm_union": float(picrust2_dm_union) if picrust2_dm_union is not None else None,
+        "delta_union": float(delta_union) if delta_union is not None else None,
         "n_samples": int(len(common)),
         "runtime_sec": float(dt),
         "config": cfg,
@@ -106,6 +139,10 @@ def main():
 
     print(f"OBJECTIVE_DM_SPEARMAN_MEAN={dm_mean:.6f}")
     print(f"OOF_DM_SPEARMAN={float(oof_dm):.6f}")
+    print(f"MODEL_DM_UNION={float(model_dm_union):.6f}")
+    if picrust2_dm_union is not None:
+        print(f"PICRUST2_DM_UNION={float(picrust2_dm_union):.6f}")
+        print(f"DELTA_UNION={float(delta_union):.6f}")
     print(f"RESULTS_PREFIX={stamp}")
 
 

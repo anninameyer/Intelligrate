@@ -76,6 +76,10 @@ def nested_cv_knn_metric_latent_on_embedding(
     assert X.index.equals(Y_tpm.index), "X and Y must have identical sample index ordering."
     samples = X.index
     n_outer = int(outer_splits)
+    need_wclr = float(w_wclr) != 0.0
+    need_pw = float(w_pw_rmse) != 0.0
+    need_softf1 = float(w_softf1) != 0.0
+    need_jsd = float(w_jsd) != 0.0
 
     if outer_iter_override is not None:
         outer_iter = outer_iter_override
@@ -143,6 +147,39 @@ def nested_cv_knn_metric_latent_on_embedding(
         Zte_base = transform_x_embedding_svd_clr(Xte, embed)
 
         inner = KFold(n_splits=int(inner_splits), shuffle=True, random_state=int(seed + 2000 + fold))
+        inner_cache = []
+        for itr, iva in inner.split(tr_ids):
+            itr_ids = tr_ids[itr]
+            iva_ids = tr_ids[iva]
+            itr_mask = np.isin(tr_ids, itr_ids)
+            iva_mask = np.isin(tr_ids, iva_ids)
+
+            Z_itr0 = Ztr_base[itr_mask]
+            Z_iva0 = Ztr_base[iva_mask]
+
+            Y_itr = Ytr_clr.loc[itr_ids, y_keep]
+            Y_iva = Ytr_clr.loc[iva_ids, y_keep]
+
+            Y_iva_tss = None
+            if need_pw or need_softf1 or need_jsd:
+                Y_iva_tss = Ytr_tss.loc[iva_ids, y_keep]
+
+            Dy_iva = aitchison_dm(Y_iva)
+            w_feat = feature_weights_from_variance(Y_itr) if need_wclr else None
+
+            inner_cache.append(
+                {
+                    "itr_ids": itr_ids,
+                    "iva_ids": iva_ids,
+                    "Z_itr0": Z_itr0,
+                    "Z_iva0": Z_iva0,
+                    "Y_itr": Y_itr,
+                    "Y_iva": Y_iva,
+                    "Y_iva_tss": Y_iva_tss,
+                    "Dy_iva": Dy_iva,
+                    "w_feat": w_feat,
+                }
+            )
         best = None
 
         for neigh_k in neigh_k_grid:
@@ -153,19 +190,16 @@ def nested_cv_knn_metric_latent_on_embedding(
 
                             comps, dms = [], []
 
-                            for itr, iva in inner.split(tr_ids):
-                                itr_ids = tr_ids[itr]
-                                iva_ids = tr_ids[iva]
-
-                                itr_mask = np.isin(tr_ids, itr_ids)
-                                iva_mask = np.isin(tr_ids, iva_ids)
-
-                                Z_itr0 = Ztr_base[itr_mask]
-                                Z_iva0 = Ztr_base[iva_mask]
-
-                                Y_itr = Ytr_clr.loc[itr_ids, y_keep]
-                                Y_iva = Ytr_clr.loc[iva_ids, y_keep]
-                                Y_iva_tss = Ytr_tss.loc[iva_ids, y_keep]
+                            for cached in inner_cache:
+                                itr_ids = cached["itr_ids"]
+                                iva_ids = cached["iva_ids"]
+                                Z_itr0 = cached["Z_itr0"]
+                                Z_iva0 = cached["Z_iva0"]
+                                Y_itr = cached["Y_itr"]
+                                Y_iva = cached["Y_iva"]
+                                Y_iva_tss = cached["Y_iva_tss"]
+                                Dy_iva = cached["Dy_iva"]
+                                w_feat = cached["w_feat"]
 
                                 if use_metric_learning:
                                     X_itr_df = pd.DataFrame(Z_itr0, index=itr_ids)
@@ -232,7 +266,7 @@ def nested_cv_knn_metric_latent_on_embedding(
                                 Yhat_iva_tss = clr_to_comp(Yhat_iva_clr)
 
                                 dm_sc = corr_upper_triangle(
-                                    aitchison_dm(Y_iva),
+                                    Dy_iva,
                                     aitchison_dm(Yhat_iva_clr),
                                     method="spearman",
                                 )
@@ -240,26 +274,38 @@ def nested_cv_knn_metric_latent_on_embedding(
                                     continue
 
                                 # Secondary metrics (kept for logging; not primary objective)
-                                w_feat = feature_weights_from_variance(Y_itr)
-                                wclr_mse = weighted_clr_mse(Y_iva, Yhat_iva_clr, w_feat)
-
-                                pw_rmse = pathway_rmse_tss(
-                                    Y_true_tss=Y_iva_tss,
-                                    Y_pred_tss=Yhat_iva_tss,
-                                    ko_to_group=ko_to_superclass,
-                                    log1p=True,
+                                wclr_mse = (
+                                    weighted_clr_mse(Y_iva, Yhat_iva_clr, w_feat) if need_wclr else 0.0
                                 )
 
-                                sp, sr, sf1 = prf_thresholded(
-                                    Y_iva_tss.to_numpy(float),
-                                    Yhat_iva_tss.to_numpy(float),
-                                    thresh=float(prf_thresh),
-                                    weight=str(prf_weight),
+                                pw_rmse = (
+                                    pathway_rmse_tss(
+                                        Y_true_tss=Y_iva_tss,
+                                        Y_pred_tss=Yhat_iva_tss,
+                                        ko_to_group=ko_to_superclass,
+                                        log1p=True,
+                                    )
+                                    if need_pw
+                                    else 0.0
                                 )
 
-                                jsd = jsd_rows(
-                                    Y_iva_tss.to_numpy(float),
-                                    Yhat_iva_tss.to_numpy(float),
+                                if need_softf1:
+                                    _, _, sf1 = prf_thresholded(
+                                        Y_iva_tss.to_numpy(float),
+                                        Yhat_iva_tss.to_numpy(float),
+                                        thresh=float(prf_thresh),
+                                        weight=str(prf_weight),
+                                    )
+                                else:
+                                    sf1 = 0.0
+
+                                jsd = (
+                                    jsd_rows(
+                                        Y_iva_tss.to_numpy(float),
+                                        Yhat_iva_tss.to_numpy(float),
+                                    )
+                                    if need_jsd
+                                    else 0.0
                                 )
 
                                 comp = (
