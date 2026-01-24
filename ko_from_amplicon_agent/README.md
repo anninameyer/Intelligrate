@@ -6,6 +6,7 @@
 - `make score`/`make score_fast` print union metrics when PICRUSt2 is provided.
 - Added an optimistic full-fit deployment score (`full_fit_dm_union`) computed by fitting on all paired samples using mode CV params.
 - Added secondary Bray–Curtis DM Spearman and Procrustes similarity (Aitchison + Bray–Curtis) for OOF, full-fit, and PICRUSt2. These now apply the same `y_detect_threshold` filtering used in training.
+- Union-metric evaluation uses the legacy (no NaN fill) KO-union for the main `model_dm_union` score. Raw (unthresholded) and strict (NaN fill) union metrics are also reported alongside thresholded versions.
 
 ## Efficiency updates (2026-01-24)
 - Inner CV skips secondary metrics when their weights are zero.

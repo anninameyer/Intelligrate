@@ -40,20 +40,28 @@ def _read_ko_to_superclass(path: Path) -> dict:
     return dict(zip(df[ko_col].astype(str), df[sc_col].astype(str)))
 
 
-def _union_mats_tss(
-    truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, *, detect_threshold: float
+def _pairwise_union_mats_tss(
+    truth_tpm: pd.DataFrame,
+    pred_tpm: pd.DataFrame,
+    *,
+    detect_threshold: float,
+    fillna_zero: bool,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    common = truth_tss.index.intersection(pred_tss.index)
-    truth = truth_tss.loc[common]
-    pred = pred_tss.loc[common]
+    # Pairwise union only for the two inputs (no global/shared union across methods).
+    common = truth_tpm.index.intersection(pred_tpm.index)
+    truth = truth_tpm.loc[common]
+    pred = pred_tpm.loc[common]
     union_cols = truth.columns.union(pred.columns)
     truth_u = truth.reindex(columns=union_cols, fill_value=0.0)
     pred_u = pred.reindex(columns=union_cols, fill_value=0.0)
-    truth_sum = truth_u.sum(axis=1)
+    if fillna_zero:
+        truth_u = truth_u.fillna(0.0)
+        pred_u = pred_u.fillna(0.0)
     truth_tss_u = tss_rows(truth_u)
     pred_tss_u = tss_rows(pred_u)
     if detect_threshold and detect_threshold > 0:
         thr_rel = pd.Series(0.0, index=truth_tss_u.index, dtype=float)
+        truth_sum = truth_u.sum(axis=1)
         nonzero = truth_sum > 0
         thr_rel.loc[nonzero] = detect_threshold / truth_sum.loc[nonzero]
         truth_tss_u = truth_tss_u.mask(truth_tss_u.lt(thr_rel, axis=0), 0.0)
@@ -63,9 +71,16 @@ def _union_mats_tss(
 
 
 def _dm_spearman_union(
-    truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, pseudocount: float, *, detect_threshold: float
+    truth_tpm: pd.DataFrame,
+    pred_tpm: pd.DataFrame,
+    pseudocount: float,
+    *,
+    detect_threshold: float,
+    fillna_zero: bool,
 ) -> float:
-    truth_tss_u, pred_tss_u = _union_mats_tss(truth_tss, pred_tss, detect_threshold=detect_threshold)
+    truth_tss_u, pred_tss_u = _pairwise_union_mats_tss(
+        truth_tpm, pred_tpm, detect_threshold=detect_threshold, fillna_zero=fillna_zero
+    )
     truth_clr = clr_rows(truth_tss_u, pseudocount=pseudocount)
     pred_clr = clr_rows(pred_tss_u, pseudocount=pseudocount)
     good = truth_clr.notna().all(axis=1) & pred_clr.notna().all(axis=1)
@@ -76,17 +91,28 @@ def _dm_spearman_union(
     return float(corr_upper_triangle(aitchison_dm(truth_clr), aitchison_dm(pred_clr), method="spearman"))
 
 
-def _bray_spearman_union(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, *, detect_threshold: float) -> float:
-    truth_tss_u, pred_tss_u = _union_mats_tss(truth_tss, pred_tss, detect_threshold=detect_threshold)
+def _bray_spearman_union(
+    truth_tpm: pd.DataFrame, pred_tpm: pd.DataFrame, *, detect_threshold: float, fillna_zero: bool
+) -> float:
+    truth_tss_u, pred_tss_u = _pairwise_union_mats_tss(
+        truth_tpm, pred_tpm, detect_threshold=detect_threshold, fillna_zero=fillna_zero
+    )
     if truth_tss_u.shape[0] < 3:
         return np.nan
     return float(corr_upper_triangle(bray_curtis_dm(truth_tss_u), bray_curtis_dm(pred_tss_u), method="spearman"))
 
 
 def _procrustes_union_aitchison(
-    truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, pseudocount: float, *, detect_threshold: float
+    truth_tpm: pd.DataFrame,
+    pred_tpm: pd.DataFrame,
+    pseudocount: float,
+    *,
+    detect_threshold: float,
+    fillna_zero: bool,
 ) -> float:
-    truth_tss_u, pred_tss_u = _union_mats_tss(truth_tss, pred_tss, detect_threshold=detect_threshold)
+    truth_tss_u, pred_tss_u = _pairwise_union_mats_tss(
+        truth_tpm, pred_tpm, detect_threshold=detect_threshold, fillna_zero=fillna_zero
+    )
     truth_clr = clr_rows(truth_tss_u, pseudocount=pseudocount)
     pred_clr = clr_rows(pred_tss_u, pseudocount=pseudocount)
     good = truth_clr.notna().all(axis=1) & pred_clr.notna().all(axis=1)
@@ -97,8 +123,12 @@ def _procrustes_union_aitchison(
     )
 
 
-def _procrustes_union_bray(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, *, detect_threshold: float) -> float:
-    truth_tss_u, pred_tss_u = _union_mats_tss(truth_tss, pred_tss, detect_threshold=detect_threshold)
+def _procrustes_union_bray(
+    truth_tpm: pd.DataFrame, pred_tpm: pd.DataFrame, *, detect_threshold: float, fillna_zero: bool
+) -> float:
+    truth_tss_u, pred_tss_u = _pairwise_union_mats_tss(
+        truth_tpm, pred_tpm, detect_threshold=detect_threshold, fillna_zero=fillna_zero
+    )
     return float(
         procrustes_similarity_from_dm(bray_curtis_dm(truth_tss_u), bray_curtis_dm(pred_tss_u), n_components=10)
     )
@@ -292,26 +322,64 @@ def main():
     # KO-union DM Spearman (model OOF vs truth; and PICRUSt2 vs truth if provided)
     union_pseudo = float(cfg["score"]["pseudocount_y"])
     union_detect = float(cfg["model"]["y_detect_threshold"])
-    model_dm_union = _dm_spearman_union(Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect)
-    model_bray_union = _bray_spearman_union(Y, oof_tss, detect_threshold=union_detect)
-    model_proc_ait = _procrustes_union_aitchison(
-        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect
+    model_dm_union_raw = _dm_spearman_union(
+        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=0.0, fillna_zero=True
     )
-    model_proc_bray = _procrustes_union_bray(Y, oof_tss, detect_threshold=union_detect)
+    model_dm_union_strict = _dm_spearman_union(
+        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=True
+    )
+    model_dm_union = _dm_spearman_union(
+        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=False
+    )
+    model_bray_union_raw = _bray_spearman_union(Y, oof_tss, detect_threshold=0.0, fillna_zero=True)
+    model_bray_union = _bray_spearman_union(Y, oof_tss, detect_threshold=union_detect, fillna_zero=True)
+    model_bray_union_legacy = _bray_spearman_union(Y, oof_tss, detect_threshold=union_detect, fillna_zero=False)
+    model_proc_ait_raw = _procrustes_union_aitchison(
+        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=0.0, fillna_zero=True
+    )
+    model_proc_ait = _procrustes_union_aitchison(
+        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=True
+    )
+    model_proc_ait_legacy = _procrustes_union_aitchison(
+        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=False
+    )
+    model_proc_bray_raw = _procrustes_union_bray(Y, oof_tss, detect_threshold=0.0, fillna_zero=True)
+    model_proc_bray = _procrustes_union_bray(Y, oof_tss, detect_threshold=union_detect, fillna_zero=True)
+    model_proc_bray_legacy = _procrustes_union_bray(Y, oof_tss, detect_threshold=union_detect, fillna_zero=False)
     picrust2_dm_union = None
     picrust2_bray_union = None
     picrust2_proc_ait = None
     picrust2_proc_bray = None
     delta_union = None
     if picrust2 is not None:
+        picrust2_dm_union_raw = _dm_spearman_union(
+            Y, picrust2, pseudocount=union_pseudo, detect_threshold=0.0, fillna_zero=True
+        )
         picrust2_dm_union = _dm_spearman_union(
-            Y, picrust2, pseudocount=union_pseudo, detect_threshold=union_detect
+            Y, picrust2, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=True
         )
-        picrust2_bray_union = _bray_spearman_union(Y, picrust2, detect_threshold=union_detect)
+        picrust2_dm_union_legacy = _dm_spearman_union(
+            Y, picrust2, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=False
+        )
+        picrust2_bray_union_raw = _bray_spearman_union(Y, picrust2, detect_threshold=0.0, fillna_zero=True)
+        picrust2_bray_union = _bray_spearman_union(Y, picrust2, detect_threshold=union_detect, fillna_zero=True)
+        picrust2_bray_union_legacy = _bray_spearman_union(
+            Y, picrust2, detect_threshold=union_detect, fillna_zero=False
+        )
+        picrust2_proc_ait_raw = _procrustes_union_aitchison(
+            Y, picrust2, pseudocount=union_pseudo, detect_threshold=0.0, fillna_zero=True
+        )
         picrust2_proc_ait = _procrustes_union_aitchison(
-            Y, picrust2, pseudocount=union_pseudo, detect_threshold=union_detect
+            Y, picrust2, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=True
         )
-        picrust2_proc_bray = _procrustes_union_bray(Y, picrust2, detect_threshold=union_detect)
+        picrust2_proc_ait_legacy = _procrustes_union_aitchison(
+            Y, picrust2, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=False
+        )
+        picrust2_proc_bray_raw = _procrustes_union_bray(Y, picrust2, detect_threshold=0.0, fillna_zero=True)
+        picrust2_proc_bray = _procrustes_union_bray(Y, picrust2, detect_threshold=union_detect, fillna_zero=True)
+        picrust2_proc_bray_legacy = _procrustes_union_bray(
+            Y, picrust2, detect_threshold=union_detect, fillna_zero=False
+        )
         delta_union = float(model_dm_union - picrust2_dm_union)
 
     # Full-fit deployment score (fit on all paired samples using mode of CV-selected params)
@@ -360,30 +428,76 @@ def main():
         seed=int(cfg["cv"]["seed"]),
     )
     full_fit_tss = clr_to_comp(full_fit_clr)
-    full_fit_dm_union = _dm_spearman_union(Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=union_detect)
-    full_fit_bray_union = _bray_spearman_union(Y, full_fit_tss, detect_threshold=union_detect)
-    full_fit_proc_ait = _procrustes_union_aitchison(
-        Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=union_detect
+    full_fit_dm_union_raw = _dm_spearman_union(
+        Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=0.0, fillna_zero=True
     )
-    full_fit_proc_bray = _procrustes_union_bray(Y, full_fit_tss, detect_threshold=union_detect)
+    full_fit_dm_union = _dm_spearman_union(
+        Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=True
+    )
+    full_fit_dm_union_legacy = _dm_spearman_union(
+        Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=False
+    )
+    full_fit_bray_union_raw = _bray_spearman_union(Y, full_fit_tss, detect_threshold=0.0, fillna_zero=True)
+    full_fit_bray_union = _bray_spearman_union(Y, full_fit_tss, detect_threshold=union_detect, fillna_zero=True)
+    full_fit_bray_union_legacy = _bray_spearman_union(
+        Y, full_fit_tss, detect_threshold=union_detect, fillna_zero=False
+    )
+    full_fit_proc_ait_raw = _procrustes_union_aitchison(
+        Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=0.0, fillna_zero=True
+    )
+    full_fit_proc_ait = _procrustes_union_aitchison(
+        Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=True
+    )
+    full_fit_proc_ait_legacy = _procrustes_union_aitchison(
+        Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=False
+    )
+    full_fit_proc_bray_raw = _procrustes_union_bray(Y, full_fit_tss, detect_threshold=0.0, fillna_zero=True)
+    full_fit_proc_bray = _procrustes_union_bray(Y, full_fit_tss, detect_threshold=union_detect, fillna_zero=True)
+    full_fit_proc_bray_legacy = _procrustes_union_bray(
+        Y, full_fit_tss, detect_threshold=union_detect, fillna_zero=False
+    )
 
     run = {
         "objective_dm_spearman_mean": dm_mean,
         "objective_dm_spearman_std": dm_std,
         "oof_dm_spearman": float(oof_dm),
+        "model_dm_union_raw": float(model_dm_union_raw),
         "model_dm_union": float(model_dm_union),
+        "model_dm_union_strict": float(model_dm_union_strict),
+        "model_bray_union_raw": float(model_bray_union_raw),
         "model_bray_union": float(model_bray_union),
+        "model_bray_union_legacy": float(model_bray_union_legacy),
+        "model_procrustes_aitchison_raw": float(model_proc_ait_raw),
         "model_procrustes_aitchison": float(model_proc_ait),
+        "model_procrustes_aitchison_legacy": float(model_proc_ait_legacy),
+        "model_procrustes_bray_raw": float(model_proc_bray_raw),
         "model_procrustes_bray": float(model_proc_bray),
+        "model_procrustes_bray_legacy": float(model_proc_bray_legacy),
+        "picrust2_dm_union_raw": float(picrust2_dm_union_raw) if picrust2_dm_union is not None else None,
         "picrust2_dm_union": float(picrust2_dm_union) if picrust2_dm_union is not None else None,
+        "picrust2_dm_union_legacy": float(picrust2_dm_union_legacy) if picrust2_dm_union is not None else None,
+        "picrust2_bray_union_raw": float(picrust2_bray_union_raw) if picrust2_bray_union is not None else None,
         "picrust2_bray_union": float(picrust2_bray_union) if picrust2_bray_union is not None else None,
+        "picrust2_bray_union_legacy": float(picrust2_bray_union_legacy) if picrust2_bray_union is not None else None,
+        "picrust2_procrustes_aitchison_raw": float(picrust2_proc_ait_raw) if picrust2_proc_ait is not None else None,
         "picrust2_procrustes_aitchison": float(picrust2_proc_ait) if picrust2_proc_ait is not None else None,
+        "picrust2_procrustes_aitchison_legacy": float(picrust2_proc_ait_legacy) if picrust2_proc_ait is not None else None,
+        "picrust2_procrustes_bray_raw": float(picrust2_proc_bray_raw) if picrust2_proc_bray is not None else None,
         "picrust2_procrustes_bray": float(picrust2_proc_bray) if picrust2_proc_bray is not None else None,
+        "picrust2_procrustes_bray_legacy": float(picrust2_proc_bray_legacy) if picrust2_proc_bray is not None else None,
         "delta_union": float(delta_union) if delta_union is not None else None,
+        "full_fit_dm_union_raw": float(full_fit_dm_union_raw),
         "full_fit_dm_union": float(full_fit_dm_union),
+        "full_fit_dm_union_legacy": float(full_fit_dm_union_legacy),
+        "full_fit_bray_union_raw": float(full_fit_bray_union_raw),
         "full_fit_bray_union": float(full_fit_bray_union),
+        "full_fit_bray_union_legacy": float(full_fit_bray_union_legacy),
+        "full_fit_procrustes_aitchison_raw": float(full_fit_proc_ait_raw),
         "full_fit_procrustes_aitchison": float(full_fit_proc_ait),
+        "full_fit_procrustes_aitchison_legacy": float(full_fit_proc_ait_legacy),
+        "full_fit_procrustes_bray_raw": float(full_fit_proc_bray_raw),
         "full_fit_procrustes_bray": float(full_fit_proc_bray),
+        "full_fit_procrustes_bray_legacy": float(full_fit_proc_bray_legacy),
         "full_fit_params": full_params,
         "n_samples": int(len(common)),
         "runtime_sec": float(dt),
@@ -398,19 +512,43 @@ def main():
 
     print(f"OBJECTIVE_DM_SPEARMAN_MEAN={dm_mean:.6f}")
     print(f"OOF_DM_SPEARMAN={float(oof_dm):.6f}")
+    print(f"MODEL_DM_UNION_RAW={float(model_dm_union_raw):.6f}")
     print(f"MODEL_DM_UNION={float(model_dm_union):.6f}")
+    print(f"MODEL_DM_UNION_STRICT={float(model_dm_union_strict):.6f}")
     print(f"FULL_FIT_DM_UNION={float(full_fit_dm_union):.6f}")
+    print(f"MODEL_BRAY_UNION_RAW={float(model_bray_union_raw):.6f}")
     print(f"MODEL_BRAY_UNION={float(model_bray_union):.6f}")
+    print(f"MODEL_BRAY_UNION_LEGACY={float(model_bray_union_legacy):.6f}")
+    print(f"MODEL_PROC_AITCHISON_RAW={float(model_proc_ait_raw):.6f}")
     print(f"MODEL_PROC_AITCHISON={float(model_proc_ait):.6f}")
+    print(f"MODEL_PROC_AITCHISON_LEGACY={float(model_proc_ait_legacy):.6f}")
+    print(f"MODEL_PROC_BRAY_RAW={float(model_proc_bray_raw):.6f}")
     print(f"MODEL_PROC_BRAY={float(model_proc_bray):.6f}")
+    print(f"MODEL_PROC_BRAY_LEGACY={float(model_proc_bray_legacy):.6f}")
+    print(f"FULL_FIT_DM_UNION_RAW={float(full_fit_dm_union_raw):.6f}")
     print(f"FULL_FIT_BRAY_UNION={float(full_fit_bray_union):.6f}")
+    print(f"FULL_FIT_BRAY_UNION_RAW={float(full_fit_bray_union_raw):.6f}")
     print(f"FULL_FIT_PROC_AITCHISON={float(full_fit_proc_ait):.6f}")
+    print(f"FULL_FIT_PROC_AITCHISON_RAW={float(full_fit_proc_ait_raw):.6f}")
     print(f"FULL_FIT_PROC_BRAY={float(full_fit_proc_bray):.6f}")
+    print(f"FULL_FIT_PROC_BRAY_RAW={float(full_fit_proc_bray_raw):.6f}")
+    print(f"FULL_FIT_DM_UNION_LEGACY={float(full_fit_dm_union_legacy):.6f}")
+    print(f"FULL_FIT_BRAY_UNION_LEGACY={float(full_fit_bray_union_legacy):.6f}")
+    print(f"FULL_FIT_PROC_AITCHISON_LEGACY={float(full_fit_proc_ait_legacy):.6f}")
+    print(f"FULL_FIT_PROC_BRAY_LEGACY={float(full_fit_proc_bray_legacy):.6f}")
     if picrust2_dm_union is not None:
+        print(f"PICRUST2_DM_UNION_RAW={float(picrust2_dm_union_raw):.6f}")
         print(f"PICRUST2_DM_UNION={float(picrust2_dm_union):.6f}")
+        print(f"PICRUST2_DM_UNION_LEGACY={float(picrust2_dm_union_legacy):.6f}")
+        print(f"PICRUST2_BRAY_UNION_RAW={float(picrust2_bray_union_raw):.6f}")
         print(f"PICRUST2_BRAY_UNION={float(picrust2_bray_union):.6f}")
+        print(f"PICRUST2_BRAY_UNION_LEGACY={float(picrust2_bray_union_legacy):.6f}")
+        print(f"PICRUST2_PROC_AITCHISON_RAW={float(picrust2_proc_ait_raw):.6f}")
         print(f"PICRUST2_PROC_AITCHISON={float(picrust2_proc_ait):.6f}")
+        print(f"PICRUST2_PROC_AITCHISON_LEGACY={float(picrust2_proc_ait_legacy):.6f}")
+        print(f"PICRUST2_PROC_BRAY_RAW={float(picrust2_proc_bray_raw):.6f}")
         print(f"PICRUST2_PROC_BRAY={float(picrust2_proc_bray):.6f}")
+        print(f"PICRUST2_PROC_BRAY_LEGACY={float(picrust2_proc_bray_legacy):.6f}")
         print(f"DELTA_UNION={float(delta_union):.6f}")
     print(f"RESULTS_PREFIX={stamp}")
 
