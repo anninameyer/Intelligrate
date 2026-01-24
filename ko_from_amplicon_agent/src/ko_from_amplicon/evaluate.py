@@ -40,44 +40,55 @@ def _read_ko_to_superclass(path: Path) -> dict:
     return dict(zip(df[ko_col].astype(str), df[sc_col].astype(str)))
 
 
-def _dm_spearman_union(
-    truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, pseudocount: float
-) -> float:
+def _union_mats_tss(
+    truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, *, detect_threshold: float
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     common = truth_tss.index.intersection(pred_tss.index)
     truth = truth_tss.loc[common]
     pred = pred_tss.loc[common]
     union_cols = truth.columns.union(pred.columns)
     truth_u = truth.reindex(columns=union_cols, fill_value=0.0)
     pred_u = pred.reindex(columns=union_cols, fill_value=0.0)
-    truth_clr = clr_rows(tss_rows(truth_u), pseudocount=pseudocount)
-    pred_clr = clr_rows(tss_rows(pred_u), pseudocount=pseudocount)
+    truth_sum = truth_u.sum(axis=1)
+    truth_tss_u = tss_rows(truth_u)
+    pred_tss_u = tss_rows(pred_u)
+    if detect_threshold and detect_threshold > 0:
+        thr_rel = pd.Series(0.0, index=truth_tss_u.index, dtype=float)
+        nonzero = truth_sum > 0
+        thr_rel.loc[nonzero] = detect_threshold / truth_sum.loc[nonzero]
+        truth_tss_u = truth_tss_u.mask(truth_tss_u.lt(thr_rel, axis=0), 0.0)
+        pred_tss_u = pred_tss_u.mask(pred_tss_u.lt(thr_rel, axis=0), 0.0)
+    good = (truth_tss_u.sum(axis=1) > 0) & (pred_tss_u.sum(axis=1) > 0)
+    return truth_tss_u.loc[good], pred_tss_u.loc[good]
+
+
+def _dm_spearman_union(
+    truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, pseudocount: float, *, detect_threshold: float
+) -> float:
+    truth_tss_u, pred_tss_u = _union_mats_tss(truth_tss, pred_tss, detect_threshold=detect_threshold)
+    truth_clr = clr_rows(truth_tss_u, pseudocount=pseudocount)
+    pred_clr = clr_rows(pred_tss_u, pseudocount=pseudocount)
     good = truth_clr.notna().all(axis=1) & pred_clr.notna().all(axis=1)
     truth_clr = truth_clr.loc[good]
     pred_clr = pred_clr.loc[good]
+    if truth_clr.shape[0] < 3:
+        return np.nan
     return float(corr_upper_triangle(aitchison_dm(truth_clr), aitchison_dm(pred_clr), method="spearman"))
 
 
-def _union_mats_tss(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    common = truth_tss.index.intersection(pred_tss.index)
-    truth = truth_tss.loc[common]
-    pred = pred_tss.loc[common]
-    union_cols = truth.columns.union(pred.columns)
-    truth_u = truth.reindex(columns=union_cols, fill_value=0.0)
-    pred_u = pred.reindex(columns=union_cols, fill_value=0.0)
-    return truth_u, pred_u
-
-
-def _bray_spearman_union(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame) -> float:
-    truth_u, pred_u = _union_mats_tss(truth_tss, pred_tss)
-    truth_tss_u = tss_rows(truth_u)
-    pred_tss_u = tss_rows(pred_u)
+def _bray_spearman_union(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, *, detect_threshold: float) -> float:
+    truth_tss_u, pred_tss_u = _union_mats_tss(truth_tss, pred_tss, detect_threshold=detect_threshold)
+    if truth_tss_u.shape[0] < 3:
+        return np.nan
     return float(corr_upper_triangle(bray_curtis_dm(truth_tss_u), bray_curtis_dm(pred_tss_u), method="spearman"))
 
 
-def _procrustes_union_aitchison(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, pseudocount: float) -> float:
-    truth_u, pred_u = _union_mats_tss(truth_tss, pred_tss)
-    truth_clr = clr_rows(tss_rows(truth_u), pseudocount=pseudocount)
-    pred_clr = clr_rows(tss_rows(pred_u), pseudocount=pseudocount)
+def _procrustes_union_aitchison(
+    truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, pseudocount: float, *, detect_threshold: float
+) -> float:
+    truth_tss_u, pred_tss_u = _union_mats_tss(truth_tss, pred_tss, detect_threshold=detect_threshold)
+    truth_clr = clr_rows(truth_tss_u, pseudocount=pseudocount)
+    pred_clr = clr_rows(pred_tss_u, pseudocount=pseudocount)
     good = truth_clr.notna().all(axis=1) & pred_clr.notna().all(axis=1)
     truth_clr = truth_clr.loc[good]
     pred_clr = pred_clr.loc[good]
@@ -86,10 +97,8 @@ def _procrustes_union_aitchison(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame,
     )
 
 
-def _procrustes_union_bray(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame) -> float:
-    truth_u, pred_u = _union_mats_tss(truth_tss, pred_tss)
-    truth_tss_u = tss_rows(truth_u)
-    pred_tss_u = tss_rows(pred_u)
+def _procrustes_union_bray(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, *, detect_threshold: float) -> float:
+    truth_tss_u, pred_tss_u = _union_mats_tss(truth_tss, pred_tss, detect_threshold=detect_threshold)
     return float(
         procrustes_similarity_from_dm(bray_curtis_dm(truth_tss_u), bray_curtis_dm(pred_tss_u), n_components=10)
     )
@@ -282,20 +291,27 @@ def main():
 
     # KO-union DM Spearman (model OOF vs truth; and PICRUSt2 vs truth if provided)
     union_pseudo = float(cfg["score"]["pseudocount_y"])
-    model_dm_union = _dm_spearman_union(Y, oof_tss, pseudocount=union_pseudo)
-    model_bray_union = _bray_spearman_union(Y, oof_tss)
-    model_proc_ait = _procrustes_union_aitchison(Y, oof_tss, pseudocount=union_pseudo)
-    model_proc_bray = _procrustes_union_bray(Y, oof_tss)
+    union_detect = float(cfg["model"]["y_detect_threshold"])
+    model_dm_union = _dm_spearman_union(Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect)
+    model_bray_union = _bray_spearman_union(Y, oof_tss, detect_threshold=union_detect)
+    model_proc_ait = _procrustes_union_aitchison(
+        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect
+    )
+    model_proc_bray = _procrustes_union_bray(Y, oof_tss, detect_threshold=union_detect)
     picrust2_dm_union = None
     picrust2_bray_union = None
     picrust2_proc_ait = None
     picrust2_proc_bray = None
     delta_union = None
     if picrust2 is not None:
-        picrust2_dm_union = _dm_spearman_union(Y, picrust2, pseudocount=union_pseudo)
-        picrust2_bray_union = _bray_spearman_union(Y, picrust2)
-        picrust2_proc_ait = _procrustes_union_aitchison(Y, picrust2, pseudocount=union_pseudo)
-        picrust2_proc_bray = _procrustes_union_bray(Y, picrust2)
+        picrust2_dm_union = _dm_spearman_union(
+            Y, picrust2, pseudocount=union_pseudo, detect_threshold=union_detect
+        )
+        picrust2_bray_union = _bray_spearman_union(Y, picrust2, detect_threshold=union_detect)
+        picrust2_proc_ait = _procrustes_union_aitchison(
+            Y, picrust2, pseudocount=union_pseudo, detect_threshold=union_detect
+        )
+        picrust2_proc_bray = _procrustes_union_bray(Y, picrust2, detect_threshold=union_detect)
         delta_union = float(model_dm_union - picrust2_dm_union)
 
     # Full-fit deployment score (fit on all paired samples using mode of CV-selected params)
@@ -344,10 +360,12 @@ def main():
         seed=int(cfg["cv"]["seed"]),
     )
     full_fit_tss = clr_to_comp(full_fit_clr)
-    full_fit_dm_union = _dm_spearman_union(Y, full_fit_tss, pseudocount=union_pseudo)
-    full_fit_bray_union = _bray_spearman_union(Y, full_fit_tss)
-    full_fit_proc_ait = _procrustes_union_aitchison(Y, full_fit_tss, pseudocount=union_pseudo)
-    full_fit_proc_bray = _procrustes_union_bray(Y, full_fit_tss)
+    full_fit_dm_union = _dm_spearman_union(Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=union_detect)
+    full_fit_bray_union = _bray_spearman_union(Y, full_fit_tss, detect_threshold=union_detect)
+    full_fit_proc_ait = _procrustes_union_aitchison(
+        Y, full_fit_tss, pseudocount=union_pseudo, detect_threshold=union_detect
+    )
+    full_fit_proc_bray = _procrustes_union_bray(Y, full_fit_tss, detect_threshold=union_detect)
 
     run = {
         "objective_dm_spearman_mean": dm_mean,
