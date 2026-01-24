@@ -19,7 +19,7 @@ embed:
 # These args map directly into nested_cv_knn_metric_latent_on_embedding
 model:
   min_prev_y_abs: 1
-  y_detect_threshold: 1.0
+  y_detect_threshold: 2000.0
   pseudocount_y: 0.0000005
 
   neigh_k_grid: [12, 14, 16, 18, 20]

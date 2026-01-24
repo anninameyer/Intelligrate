@@ -43,6 +43,11 @@ def _cmdscale(D: np.ndarray, n_components: int) -> np.ndarray:
 
 
 def procrustes_similarity_from_dm(D_true: np.ndarray, D_pred: np.ndarray, n_components: int = 10) -> float:
+    good = np.isfinite(D_true).all(axis=1) & np.isfinite(D_pred).all(axis=1)
+    if good.sum() < 3:
+        return np.nan
+    D_true = D_true[good][:, good]
+    D_pred = D_pred[good][:, good]
     n = D_true.shape[0]
     k = max(2, min(int(n_components), n - 1))
     X = _cmdscale(D_true, k)
