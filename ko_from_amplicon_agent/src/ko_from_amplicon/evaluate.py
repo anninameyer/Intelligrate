@@ -21,7 +21,7 @@ from .knn_core import (
     knn_kernel_predict_tau_abs,
     median_nn_distance,
 )
-from .metrics import aitchison_dm, corr_upper_triangle
+from .metrics import aitchison_dm, bray_curtis_dm, corr_upper_triangle, procrustes_similarity_from_dm
 from .transforms import clr_rows, clr_to_comp, keep_by_prevalence, tss_rows
 
 
@@ -55,6 +55,44 @@ def _dm_spearman_union(
     truth_clr = truth_clr.loc[good]
     pred_clr = pred_clr.loc[good]
     return float(corr_upper_triangle(aitchison_dm(truth_clr), aitchison_dm(pred_clr), method="spearman"))
+
+
+def _union_mats_tss(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    common = truth_tss.index.intersection(pred_tss.index)
+    truth = truth_tss.loc[common]
+    pred = pred_tss.loc[common]
+    union_cols = truth.columns.union(pred.columns)
+    truth_u = truth.reindex(columns=union_cols, fill_value=0.0)
+    pred_u = pred.reindex(columns=union_cols, fill_value=0.0)
+    return truth_u, pred_u
+
+
+def _bray_spearman_union(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame) -> float:
+    truth_u, pred_u = _union_mats_tss(truth_tss, pred_tss)
+    truth_tss_u = tss_rows(truth_u)
+    pred_tss_u = tss_rows(pred_u)
+    return float(corr_upper_triangle(bray_curtis_dm(truth_tss_u), bray_curtis_dm(pred_tss_u), method="spearman"))
+
+
+def _procrustes_union_aitchison(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame, pseudocount: float) -> float:
+    truth_u, pred_u = _union_mats_tss(truth_tss, pred_tss)
+    truth_clr = clr_rows(tss_rows(truth_u), pseudocount=pseudocount)
+    pred_clr = clr_rows(tss_rows(pred_u), pseudocount=pseudocount)
+    good = truth_clr.notna().all(axis=1) & pred_clr.notna().all(axis=1)
+    truth_clr = truth_clr.loc[good]
+    pred_clr = pred_clr.loc[good]
+    return float(
+        procrustes_similarity_from_dm(aitchison_dm(truth_clr), aitchison_dm(pred_clr), n_components=10)
+    )
+
+
+def _procrustes_union_bray(truth_tss: pd.DataFrame, pred_tss: pd.DataFrame) -> float:
+    truth_u, pred_u = _union_mats_tss(truth_tss, pred_tss)
+    truth_tss_u = tss_rows(truth_u)
+    pred_tss_u = tss_rows(pred_u)
+    return float(
+        procrustes_similarity_from_dm(bray_curtis_dm(truth_tss_u), bray_curtis_dm(pred_tss_u), n_components=10)
+    )
 
 
 def _mode_or_default(series: pd.Series | None, default):
@@ -245,10 +283,19 @@ def main():
     # KO-union DM Spearman (model OOF vs truth; and PICRUSt2 vs truth if provided)
     union_pseudo = float(cfg["score"]["pseudocount_y"])
     model_dm_union = _dm_spearman_union(Y, oof_tss, pseudocount=union_pseudo)
+    model_bray_union = _bray_spearman_union(Y, oof_tss)
+    model_proc_ait = _procrustes_union_aitchison(Y, oof_tss, pseudocount=union_pseudo)
+    model_proc_bray = _procrustes_union_bray(Y, oof_tss)
     picrust2_dm_union = None
+    picrust2_bray_union = None
+    picrust2_proc_ait = None
+    picrust2_proc_bray = None
     delta_union = None
     if picrust2 is not None:
         picrust2_dm_union = _dm_spearman_union(Y, picrust2, pseudocount=union_pseudo)
+        picrust2_bray_union = _bray_spearman_union(Y, picrust2)
+        picrust2_proc_ait = _procrustes_union_aitchison(Y, picrust2, pseudocount=union_pseudo)
+        picrust2_proc_bray = _procrustes_union_bray(Y, picrust2)
         delta_union = float(model_dm_union - picrust2_dm_union)
 
     # Full-fit deployment score (fit on all paired samples using mode of CV-selected params)
@@ -298,15 +345,27 @@ def main():
     )
     full_fit_tss = clr_to_comp(full_fit_clr)
     full_fit_dm_union = _dm_spearman_union(Y, full_fit_tss, pseudocount=union_pseudo)
+    full_fit_bray_union = _bray_spearman_union(Y, full_fit_tss)
+    full_fit_proc_ait = _procrustes_union_aitchison(Y, full_fit_tss, pseudocount=union_pseudo)
+    full_fit_proc_bray = _procrustes_union_bray(Y, full_fit_tss)
 
     run = {
         "objective_dm_spearman_mean": dm_mean,
         "objective_dm_spearman_std": dm_std,
         "oof_dm_spearman": float(oof_dm),
         "model_dm_union": float(model_dm_union),
+        "model_bray_union": float(model_bray_union),
+        "model_procrustes_aitchison": float(model_proc_ait),
+        "model_procrustes_bray": float(model_proc_bray),
         "picrust2_dm_union": float(picrust2_dm_union) if picrust2_dm_union is not None else None,
+        "picrust2_bray_union": float(picrust2_bray_union) if picrust2_bray_union is not None else None,
+        "picrust2_procrustes_aitchison": float(picrust2_proc_ait) if picrust2_proc_ait is not None else None,
+        "picrust2_procrustes_bray": float(picrust2_proc_bray) if picrust2_proc_bray is not None else None,
         "delta_union": float(delta_union) if delta_union is not None else None,
         "full_fit_dm_union": float(full_fit_dm_union),
+        "full_fit_bray_union": float(full_fit_bray_union),
+        "full_fit_procrustes_aitchison": float(full_fit_proc_ait),
+        "full_fit_procrustes_bray": float(full_fit_proc_bray),
         "full_fit_params": full_params,
         "n_samples": int(len(common)),
         "runtime_sec": float(dt),
@@ -323,8 +382,17 @@ def main():
     print(f"OOF_DM_SPEARMAN={float(oof_dm):.6f}")
     print(f"MODEL_DM_UNION={float(model_dm_union):.6f}")
     print(f"FULL_FIT_DM_UNION={float(full_fit_dm_union):.6f}")
+    print(f"MODEL_BRAY_UNION={float(model_bray_union):.6f}")
+    print(f"MODEL_PROC_AITCHISON={float(model_proc_ait):.6f}")
+    print(f"MODEL_PROC_BRAY={float(model_proc_bray):.6f}")
+    print(f"FULL_FIT_BRAY_UNION={float(full_fit_bray_union):.6f}")
+    print(f"FULL_FIT_PROC_AITCHISON={float(full_fit_proc_ait):.6f}")
+    print(f"FULL_FIT_PROC_BRAY={float(full_fit_proc_bray):.6f}")
     if picrust2_dm_union is not None:
         print(f"PICRUST2_DM_UNION={float(picrust2_dm_union):.6f}")
+        print(f"PICRUST2_BRAY_UNION={float(picrust2_bray_union):.6f}")
+        print(f"PICRUST2_PROC_AITCHISON={float(picrust2_proc_ait):.6f}")
+        print(f"PICRUST2_PROC_BRAY={float(picrust2_proc_bray):.6f}")
         print(f"DELTA_UNION={float(delta_union):.6f}")
     print(f"RESULTS_PREFIX={stamp}")
 

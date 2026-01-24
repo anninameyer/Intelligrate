@@ -3,12 +3,17 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist, pdist, squareform
+from scipy.spatial import procrustes
 from scipy.stats import spearmanr
 
 
 def aitchison_dm(Y_clr: pd.DataFrame) -> np.ndarray:
     # Euclidean in CLR space equals Aitchison distance
     return squareform(pdist(Y_clr.to_numpy(dtype=float), metric="euclidean"))
+
+
+def bray_curtis_dm(Y_tss: pd.DataFrame) -> np.ndarray:
+    return squareform(pdist(Y_tss.to_numpy(dtype=float), metric="braycurtis"))
 
 
 def corr_upper_triangle(A: np.ndarray, B: np.ndarray, method: str = "spearman") -> float:
@@ -23,6 +28,27 @@ def corr_upper_triangle(A: np.ndarray, B: np.ndarray, method: str = "spearman") 
     if method == "pearson":
         return float(np.corrcoef(a[m], b[m])[0, 1])
     raise ValueError(method)
+
+
+def _cmdscale(D: np.ndarray, n_components: int) -> np.ndarray:
+    n = D.shape[0]
+    H = np.eye(n) - np.ones((n, n)) / n
+    B = -0.5 * H @ (D**2) @ H
+    w, v = np.linalg.eigh(B)
+    idx = np.argsort(w)[::-1]
+    w = w[idx]
+    v = v[:, idx]
+    w = np.clip(w[:n_components], 0, None)
+    return v[:, :n_components] * np.sqrt(w[None, :])
+
+
+def procrustes_similarity_from_dm(D_true: np.ndarray, D_pred: np.ndarray, n_components: int = 10) -> float:
+    n = D_true.shape[0]
+    k = max(2, min(int(n_components), n - 1))
+    X = _cmdscale(D_true, k)
+    Y = _cmdscale(D_pred, k)
+    _, _, disparity = procrustes(X, Y)
+    return float(1.0 - disparity)
 
 
 def feature_weights_from_variance(Y_clr: pd.DataFrame, eps: float = 1e-12) -> np.ndarray:
