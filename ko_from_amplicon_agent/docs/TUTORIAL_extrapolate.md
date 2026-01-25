@@ -191,6 +191,20 @@ python -m intelligrate.extrapolate.full_predict \
 ```
 This writes `results/pred_paired.metrics.tsv`.
 
+### Leakage-free evaluation on paired samples (recommended)
+**Important:** the full-fit model is trained on *all paired samples*. Evaluating those same paired samples
+with full-fit predictions is optimistic (leakage).
+
+To get leakage-free paired predictions **with fixed hyperparameters**, run a single CV pass with fixed
+params and replace the paired rows in your full prediction table. This is implemented in the API helper:
+`fixed_param_oof_knn_on_embedding` (see the notebook).
+
+Notes:
+- Set `outer_splits = len(X)` to approximate leave-one-out (slow).
+- The default `outer_splits` gives a faster, still leakage-free estimate.
+- The notebook writes `oof_fixed_tss.tsv` and then **overwrites `pred_full.*`** so paired rows are OOF,
+  while unpaired rows remain full-fit predictions.
+
 ## PICRUSt2 comparison
 If `picrust2_kos.tsv` is provided in the config, `train` reports the same metrics for PICRUSt2 and logs:
 - `picrust2_dm_union`

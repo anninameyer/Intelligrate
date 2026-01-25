@@ -1,13 +1,23 @@
 # intelligrate.subset Tutorial
 
 ## What this does (short)
-`intelligrate.subset` helps select a representative subset of samples using:
+`intelligrate.subset` helps select a representative subset of samples for shotgun sequencing by balancing:
+- **diversity** in feature space
+- **geographic spread** (optional)
+- **metadata coverage** (categories you care about)
+
+It does this using:
 - Distance matrices from feature tables
 - k selection diagnostics
 - k‑medoids clustering
 - A genetic algorithm (GA) that balances diversity and metadata representation
 
 This tutorial is beginner‑friendly and runnable end‑to‑end using the provided example data.
+
+## Why subset?
+Shotgun sequencing is expensive. Subsetting lets you select a smaller number of samples that still capture
+the diversity and metadata structure of the full dataset, improving downstream generalization while keeping
+costs manageable.
 
 ## Install the package
 Recommended: use a clean Python >= 3.10 environment (venv or conda).

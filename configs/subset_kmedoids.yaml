@@ -1,0 +1,5 @@
+mode: kmedoids
+distance_matrix: results/subset/distance.tsv
+k: 3
+seed: 42
+output_dir: results/subset

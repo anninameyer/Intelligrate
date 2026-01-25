@@ -1,0 +1,67 @@
+# Deprecated: fast config is now the default. Keep this file for compatibility.
+# Edit configs/default.yaml instead.
+
+# See configs/default.yaml for full documentation and grid sweep examples.
+
+# This file mirrors default.yaml.
+
+data:
+  x_full: "X_kmers_full.tsv"
+  x: "X_kmers.tsv"
+  y: "Y_kos.tsv"
+  picrust2: "picrust2_kos.tsv"
+  ko_to_superclass: "ko_to_superclass.tsv"
+
+cv:
+  outer_splits: 5
+  inner_splits: 3
+  seed: 0
+  informed_splits: false
+
+embed:
+  min_prev_x_abs: 14
+  pseudocount_x: 0.5
+  n_components: 128
+
+model:
+  min_prev_y_abs: 1
+  y_detect_threshold: 3000.0
+  pseudocount_y: 0.0000005
+
+  neigh_k_grid: [20, 24, 28, 32]
+  tau_mult_grid: [0.5, 1.0, 2.0, 4.0]
+  lam_grid: [0.0]
+  y_latent_k_grid: [0, 10, 20]
+
+  use_metric_learning: true
+  metric_max_pairs: 5000
+  metric_ridge_grid: [1.0, 2.5, 5.0]
+
+  ood_shrink: true
+  ood_shrink_inner: true
+  ood_lam_base: 0.7
+  ood_lam_cap: 0.5
+  ood_tau_inflate: false
+
+objective:
+  w_dm: 1.0
+  w_wclr: 0.0
+  w_pw_rmse: 0.0
+  w_softf1: 0.0
+  w_jsd: 0.0
+
+prf:
+  prf_thresh: 1.0e-6
+  prf_weight: "binary"
+
+metrics:
+  compute_wclr: false
+  compute_jsd: false
+  compute_pathway_rmse: false
+  pathway_rmse_per_group: false
+  pathway_rmse_log1p: true
+
+score:
+  min_prev_y_abs: 1
+  y_detect_threshold: 1.0
+  pseudocount_y: 0.0000005

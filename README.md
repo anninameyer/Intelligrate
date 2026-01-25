@@ -6,6 +6,15 @@ Two workflows in one package:
 
 Everything is explained in plain words below, with runnable notebooks.
 
+## Why these workflows?
+**Why subset?** Shotgun sequencing is expensive. Subsetting lets you pick a *small, diverse, and metadata‑balanced* group
+that still represents the full dataset well. This improves downstream generalization and keeps costs under control.
+
+**Why extrapolate?** Only a fraction of samples may have shotgun data. Extrapolate learns a mapping from amplicon
+k‑mers to KO profiles on the paired samples, then predicts KOs for the rest.
+
+**How they connect:** subset picks which samples get shotgun; extrapolate uses those paired samples to predict the rest.
+
 ## Table of contents
 - [Install](#install)
 - [Quickstart: subset](#quickstart-subset)
@@ -29,6 +38,8 @@ pip install -e .
 
 ## Quickstart: subset
 Use the Python API (recommended for clarity). Full runnable example in the notebook.
+
+**Rationale (simple):** pick a subset that is (1) diverse in feature space, (2) spatially spread, and (3) balanced across key metadata.
 
 ```
 python - <<'PY'
@@ -61,6 +72,8 @@ PY
 
 ## Quickstart: extrapolate
 Use the Python API (recommended for transparency). Full runnable example in the notebook.
+
+**Rationale (simple):** fit on paired samples, then predict KOs for all other samples with only amplicon k‑mers.
 
 ```
 python - <<'PY'
@@ -142,6 +155,10 @@ Extrapolate outputs:
 - `pred*.clr.tsv`, `pred*.tss.tsv`, `pred*.diag.tsv` (full_predict outputs)
 - `pred*.metrics.tsv` (metrics when truth is provided)
 
+**Leakage‑free note (important):** evaluation on paired samples must use out‑of‑fold predictions.
+The tutorial notebook overwrites `pred_full.*` so paired rows are OOF (leakage‑free), while unpaired rows
+remain full‑fit predictions.
+
 ## Parameter guide (simple words)
 ### subset (intelligrate.subset)
 These are the main functions used in the subset notebook. All parameters are editable in Python.
@@ -221,6 +238,11 @@ Training uses these parameter groups:
 **predict_final_model(X_new, model)**
 - `X_new`: new k-mer table
 - `model`: model dict produced by `fit_final_model`
+
+**fixed_param_oof_knn_on_embedding(...)**
+- Runs a single CV pass with **fixed hyperparameters** (no inner CV).
+- Use for leakage‑free predictions on paired samples.
+- Set `outer_splits = len(X)` to approximate leave‑one‑out (slow).
 
 **evaluate_paired_subset(truth_tpm, pred_tss, pseudocount, detect_threshold, prf_thresh, prf_weight, ...)**
 - `truth_tpm`: true KO table
