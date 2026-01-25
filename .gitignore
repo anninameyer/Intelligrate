@@ -20,3 +20,4 @@ results/*.tsv
 results/*.csv
 results/*.json
 EOF
+.venv/
