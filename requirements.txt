@@ -1,4 +1,5 @@
 joblib==1.5.3
+deap==1.4.1
 -e git+https://github.com/anninameyer/Intelligrate.git@2551b760713e8e708661a4757a283b295b5f5f21#egg=ko_from_amplicon&subdirectory=ko_from_amplicon_agent
 numpy==2.4.1
 pandas==3.0.0
