@@ -1,1 +1,1 @@
-__all__ = ['extrapolate']
+__all__ = ['extrapolate', 'subset']

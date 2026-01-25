@@ -11,9 +11,15 @@ dependencies = [
   "pandas",
   "scipy",
   "scikit-learn",
+  "deap",
+  "matplotlib",
   "pyyaml",
   "joblib",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+kmedoids = ["scikit-learn-extra"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

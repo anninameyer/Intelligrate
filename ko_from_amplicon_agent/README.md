@@ -27,6 +27,10 @@ Timestamped copies are also written for reproducibility.
 
 For a full walkthrough (installation, data format, and workflows), see `docs/TUTORIAL.md`.
 
+## intelligrate.subset
+The `intelligrate.subset` module supports distance computation, k-medoids clustering, k diagnostics, and a
+metadata-aware genetic algorithm for subset selection. See `docs/subset/TUTORIAL.md` for examples.
+
 ## Evaluation updates (2026-01-24)
 - Added KO-union DM Spearman benchmarking for model OOF vs truth and PICRUSt2 vs truth.
 - Summary JSON now includes: `model_dm_union`, `picrust2_dm_union`, `delta_union`, and `runtime_sec`.

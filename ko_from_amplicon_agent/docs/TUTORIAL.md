@@ -39,6 +39,9 @@ Optional:
 `make score` uses `configs/default.yaml`. This is the **fast** default; change `cv.outer_splits` and
 `cv.inner_splits` to trade runtime for stability.
 
+Why: training uses **nested CV** to select hyperparameters without leakage and produce robust out‑of‑fold
+predictions for evaluation.
+
 ```
 make score
 # or
@@ -52,6 +55,10 @@ Outputs written to `results/`:
 - `grid_results.tsv`: only when a grid sweep is used (see below)
 
 Timestamped copies are also written for reproducibility.
+
+Interpretation:
+- Higher `OBJECTIVE_DM_SPEARMAN_MEAN` means predicted sample–sample relationships more closely match truth.
+- `model_dm_union` is the KO‑union Spearman score; compare against `picrust2_dm_union` when available.
 
 ### Beginner-friendly example (explicit steps)
 1) Start from the default config:
@@ -113,6 +120,8 @@ Notes:
 ## 2) Full fit (final model)
 Fit a final model on the paired data and save it with joblib.
 
+Why: this trains a single deployable model on all paired samples, using fixed hyperparameters.
+
 Step A: fit and save the embedding (one-time). For consistency with training, reuse the same parameters
 from config:
 ```
@@ -158,6 +167,12 @@ Predict KOs for any k-mer table (paired or unpaired). The command writes:
 - `*.tss.tsv` (TSS predictions)
 - `*.diag.tsv` (OOD NN distance diagnostics)
 
+Why: use the trained model to extrapolate KOs to samples without shotgun data and inspect OOD diagnostics
+to gauge how far predictions are from the training manifold.
+
+Interpretation:
+- Larger `ood_nn_min` suggests a sample is farther from the training manifold and predictions may be less reliable.
+
 ```
 python -m intelligrate.extrapolate.full_predict \
   --model results/model.joblib \
@@ -181,6 +196,8 @@ If `picrust2_kos.tsv` is provided in the config, `train` reports the same metric
 - `picrust2_dm_union`
 - `model_dm_union`
 - `delta_union = model_dm_union - picrust2_dm_union`
+
+Why: this provides a baseline comparison against PICRUSt2 under identical metrics.
 
 ## Config reference (all parameters)
 Below is a concise reference for **every parameter in `configs/default.yaml`**.
