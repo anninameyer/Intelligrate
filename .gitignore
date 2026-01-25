@@ -13,6 +13,7 @@ __pycache__/
 
 # OS files
 .DS_Store
+.Rhistory
 
 # Results (optional: keep if you want to version results)
 results/*.tsv
