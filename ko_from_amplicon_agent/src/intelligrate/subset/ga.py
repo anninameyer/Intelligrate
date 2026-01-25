@@ -105,6 +105,15 @@ def smart_mutate(
             for var, target_counts in category_targets.items():
                 total_counts = metadata_df.loc[individual, var].value_counts()
                 value = sample_row[var]
+                if isinstance(value, pd.Series):
+                    # If duplicate sample IDs exist, pick the first value (matches notebook behavior).
+                    value = value.iloc[0] if not value.empty else np.nan
+                elif isinstance(value, pd.DataFrame):
+                    # If duplicate columns exist, pick the first value.
+                    value = value.iloc[0, 0] if not value.empty else np.nan
+                elif isinstance(value, (np.ndarray, list, tuple)):
+                    # Fallback for unexpected container values.
+                    value = value[0] if len(value) else np.nan
                 if pd.isna(value):
                     continue
                 if value in target_counts:
@@ -175,12 +184,19 @@ def ga_subset(
     balance_scale: float = 1000.0,
     hard_penalty_weight: float = 100.0,
 ):
+    requested_total = int(total_samples)
     if balance_vars is None:
         balance_vars = []
     if fixed_include is None:
         fixed_include = []
     if fixed_exclude is None:
         fixed_exclude = []
+
+    # Ensure unique sample IDs to avoid ambiguous Series/DataFrame lookups.
+    if metadata_df.index.has_duplicates:
+        metadata_df = metadata_df.loc[~metadata_df.index.duplicated(keep="first")]
+    if cluster_df.index.has_duplicates:
+        cluster_df = cluster_df.loc[~cluster_df.index.duplicated(keep="first")]
 
     random.seed(int(random_state))
     np.random.seed(int(random_state))
@@ -385,6 +401,39 @@ def ga_subset(
             best_additions = [s for s, _ in sorted(scored_candidates, key=lambda x: x[1], reverse=True)[:missing]]
             valid_best_ind.extend(best_additions)
             already_used.update(best_additions)
+        valid_best_ind = list(dict.fromkeys(valid_best_ind))
+
+    # If the requested total was not divisible by k, top up with best candidates.
+    if len(valid_best_ind) < requested_total:
+        missing = requested_total - len(valid_best_ind)
+        already_used = set(valid_best_ind)
+        candidates = [
+            s
+            for s in metadata_df.index
+            if s not in already_used and s in cluster_df.index and s not in fixed_exclude
+        ]
+        if len(candidates) < missing:
+            raise ValueError("Not enough candidates to reach requested total_samples.")
+        base_df = metadata_df.loc[valid_best_ind]
+        scored_candidates = []
+        for s in candidates:
+            test_df = pd.concat([base_df, metadata_df.loc[[s]]])
+            score = score_global_sample_set_with_distance(
+                test_df,
+                coord_vars,
+                category_targets,
+                min_per_category=min_per_category,
+                grid_size=grid_size,
+                grid_weight=grid_weight,
+                distance_weight=distance_weight,
+                balance_weight=balance_weight,
+                balance_scale=balance_scale,
+                hard_penalty_weight=hard_penalty_weight,
+                metadata_weights=metadata_weights,
+            )
+            scored_candidates.append((s, score))
+        best_additions = [s for s, _ in sorted(scored_candidates, key=lambda x: x[1], reverse=True)[:missing]]
+        valid_best_ind.extend(best_additions)
         valid_best_ind = list(dict.fromkeys(valid_best_ind))
 
     result_df = metadata_df.loc[valid_best_ind].copy()

@@ -3,29 +3,13 @@ Build a reusable Python package **intelligrate** with two main functionalities:
 1) `intelligrate.extrapolate`: learn a model to predict KO profiles from ASV_kmers using paired amplicon–shotgun samples, then extrapolate KOs to additional samples with only ASV_kmers.
 2) `intelligrate.subset`: (later) genetic-algorithm-based subsetting of samples for shotgun sequencing to optimize diversity (ASV_kmers) and metadata representation.
 
-
+This repository currently focuses on (1) `intelligrate.extrapolate`. The subsetting module will be packaged later once this one is stable.
 
 # Important rules
 - Do not run destructive commands (rm, mv on data, sudo, chmod -R, etc.).
 - Do not access files outside this repository (Intelligrate) and do not write anything outside this repository.
 - Do not install system packages; only use the current venv.
 - Do not modify files in data/.
-
-# Current task focus (DO THIS FIRST)
-For the next agent run, focus ONLY on documentation and usability:
-- Improve the main README so users can quickly find:
-  - install instructions (from GitHub tag)
-  - CLI entry points and/or Python API quickstart
-  - links to tutorials and example notebooks
-  - where outputs are written (results/) and what they mean
-- Add two example Jupyter notebooks under notebooks/:
-  1) extrapolate_train_evaluate_full_fit_predict.ipynb
-  2) subset_kmedoids_ga_selection.ipynb
-- Ensure the notebooks run end-to-end using the example data in data/ and the current configs.
-- Do NOT change modelling code, statistics, objective definitions, or default hyperparameters in this phase
-  unless required to make the notebooks run (in that case, only minimal bugfixes).
-- After notebooks + README are done, add prominent links in README to those notebooks. Generally make sure that the main README when opening the repo points users to the tutorials and explains the main functionality clearly so they are not lost and know how to get started.
-
 
 # Package naming
 - The published package name must be `intelligrate`.
@@ -80,7 +64,7 @@ Implement these modules and keep them stable:
    - save model artifact (joblib)
 3) `full_predict`:
    - predict for new X (kmer-only)
-   - always output full predicted tables (CLR + TSS). If truth Y exists for a subset, evaluate with the same metrics as in train.
+   - “always output full predicted tables (CLR + TSS) and a distance-to-training diagnostic (e.g., min NN distance in embedding space to the paired training set) to flag extrapolations far from the training manifold
    - if truth Y exists for a subset, evaluate with the same metrics as in the 'train' mode and expose these results
 
 # Efficiency requirement
@@ -120,13 +104,4 @@ After packaging is stable, add a tutorial (notebook or markdown) that demonstrat
 - full_predict on full X dataset
 - optional: PICRUSt2 comparison
 - explain for beginners which files are generated and what they mean, and how to tune hyperparameters and what are important considerations.
-
-# Repo UX requirements (non-negotiable)
-- README.md must link directly to:
-  - the two example notebooks
-  - the tutorial markdown(s)
-  - the CLI/API usage section
-
-- Add a short table-of-contents section at top of README that contains for user relevant links/explanations only (install, quickstart, tutorials, outputs).
-
 

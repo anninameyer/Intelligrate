@@ -9,7 +9,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yaml
 from scipy.spatial.distance import cdist
 
 from .cv_knn import nested_cv_knn_metric_latent_on_embedding
@@ -523,6 +522,7 @@ def _run_once(cfg: dict, *, data_dir: Path, out_dir: Path) -> dict:
 
 
 def main():
+    import yaml
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=str, default="configs/default.yaml")
     args = ap.parse_args()
