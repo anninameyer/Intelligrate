@@ -501,3 +501,193 @@ def nested_cv_knn_metric_latent_on_embedding(
         )
 
     return oof_pred_clr, oof_pred_tss, pd.DataFrame(rows)
+
+
+def fixed_param_oof_knn_on_embedding(
+    X: pd.DataFrame,
+    Y_tpm: pd.DataFrame,
+    embed: dict,
+    *,
+    ko_to_superclass: dict,
+    outer_splits: int = 5,
+    seed: int = 0,
+    min_prev_y_abs: int = 1,
+    y_detect_threshold: float = 1.0,
+    pseudocount_y: float = 0.5 / 1e6,
+    neigh_k: int = 12,
+    tau_mult: float = 2.0,
+    lam: float = 0.0,
+    y_latent_k: int = 10,
+    use_metric_learning: bool = True,
+    metric_max_pairs: int = 10000,
+    metric_ridge: float = 1.0,
+    tau_scale_k_nn: int = 10,
+    ood_shrink: bool = False,
+    ood_lam_base: float = 0.15,
+    ood_lam_cap: float = 0.80,
+    ood_tau_inflate: bool = False,
+    ood_tau_gamma: float = 1.0,
+    informed_splits: bool = False,
+    informed_kmeans_on: str = "X",
+    informed_kmeans_n_init: int = 20,
+    informed_kmeans_k: int | None = None,
+    prf_thresh: float = 1e-6,
+    prf_weight: str = "binary",
+):
+    assert X.index.equals(Y_tpm.index), "X and Y must have identical sample index ordering."
+    samples = X.index
+    n_outer = int(outer_splits)
+
+    if not informed_splits:
+        outer = KFold(n_splits=n_outer, shuffle=True, random_state=int(seed))
+        outer_iter = outer.split(samples)
+        split_mode = "kfold"
+        k_used = np.nan
+    else:
+        if informed_kmeans_on != "X":
+            raise ValueError("Use informed_kmeans_on='X' to avoid target leakage.")
+
+        Z_all = transform_x_embedding_svd_clr(X, embed)
+        k_default = max(2, n_outer // 2)
+        k = int(informed_kmeans_k if informed_kmeans_k is not None else k_default)
+
+        while True:
+            km = KMeans(n_clusters=int(k), random_state=int(seed), n_init=int(informed_kmeans_n_init))
+            labels = km.fit_predict(Z_all)
+            counts = np.bincount(labels)
+            if counts.min() >= n_outer:
+                break
+            if k <= 2:
+                outer = KFold(n_splits=n_outer, shuffle=True, random_state=int(seed))
+                outer_iter = outer.split(samples)
+                split_mode = "fallback_kfold"
+                k_used = 0
+                break
+            k -= 1
+
+        if "outer_iter" not in locals() or split_mode not in {"fallback_kfold"}:
+            outer = StratifiedKFold(n_splits=n_outer, shuffle=True, random_state=int(seed))
+            outer_iter = outer.split(np.zeros(len(samples)), labels)
+            split_mode = "cluster_stratified"
+            k_used = int(k)
+
+    oof_pred_clr = pd.DataFrame(np.nan, index=samples, columns=Y_tpm.columns)
+    oof_pred_tss = pd.DataFrame(np.nan, index=samples, columns=Y_tpm.columns)
+    rows: list[dict] = []
+
+    for fold, (tr, te) in enumerate(outer_iter, start=1):
+        tr_ids = samples[tr]
+        te_ids = samples[te]
+
+        Xtr = X.loc[tr_ids]
+        Xte = X.loc[te_ids]
+        Ytr0 = Y_tpm.loc[tr_ids]
+        Yte0 = Y_tpm.loc[te_ids]
+
+        y_keep = keep_by_prevalence(Ytr0, min_prev_abs=int(min_prev_y_abs), detect_threshold=float(y_detect_threshold))
+        Ytr0 = Ytr0.loc[:, y_keep]
+        Yte0 = Yte0.loc[:, y_keep]
+        if Ytr0.shape[1] < 5:
+            continue
+
+        Ytr_tss = tss_rows(Ytr0).fillna(0.0)
+        Yte_tss = tss_rows(Yte0).fillna(0.0)
+        Ytr_clr = clr_rows(Ytr_tss, pseudocount=float(pseudocount_y))
+        Yte_clr = clr_rows(Yte_tss, pseudocount=float(pseudocount_y))
+
+        Ztr_base = transform_x_embedding_svd_clr(Xtr, embed)
+        Zte_base = transform_x_embedding_svd_clr(Xte, embed)
+
+        if use_metric_learning:
+            Xtr_df = pd.DataFrame(Ztr_base, index=tr_ids)
+            w = fit_supervised_diag_metric(
+                X_clr=Xtr_df,
+                Y_clr=Ytr_clr.loc[:, y_keep],
+                max_pairs=int(metric_max_pairs),
+                random_state=int(seed + 1000 + fold),
+                ridge=float(metric_ridge),
+            )
+            Ztr = Ztr_base * np.sqrt(w[None, :])
+            Zte = Zte_base * np.sqrt(w[None, :])
+        else:
+            Ztr, Zte = Ztr_base, Zte_base
+
+        d_ood = cdist(Zte, Ztr)
+        nn_min = d_ood.min(axis=1)
+
+        scale = median_nn_distance(Ztr, k=min(int(tau_scale_k_nn), Ztr.shape[0] - 1))
+        tau_abs = float(tau_mult) * float(scale)
+
+        if ood_tau_inflate:
+            z_ood = float(np.median(nn_min)) / (float(scale) + 1e-12)
+            tau_abs_eff = tau_abs * (1.0 + float(ood_tau_gamma) * z_ood)
+        else:
+            tau_abs_eff = tau_abs
+
+        if int(y_latent_k) > 0:
+            svd, col_mean = fit_y_latent_svd(
+                Ytr_clr.loc[:, y_keep],
+                k=int(y_latent_k),
+                random_state=int(seed + 5000 + fold),
+            )
+            Ttr = encode_y_latent(Ytr_clr.loc[:, y_keep], svd, col_mean)
+            That = knn_kernel_predict_tau_abs(
+                Z_tr=Ztr,
+                Z_te=Zte,
+                T_tr=Ttr,
+                k=int(neigh_k),
+                tau_abs=float(tau_abs_eff),
+                lam=float(lam),
+            )
+            Yhat_te_arr = decode_y_latent(That, svd, col_mean)
+        else:
+            Ttr = Ytr_clr.loc[:, y_keep].to_numpy(dtype=float)
+            Yhat_te_arr = knn_kernel_predict_tau_abs(
+                Z_tr=Ztr,
+                Z_te=Zte,
+                T_tr=Ttr,
+                k=int(neigh_k),
+                tau_abs=float(tau_abs_eff),
+                lam=float(lam),
+            )
+            Yhat_te_arr = Yhat_te_arr - Yhat_te_arr.mean(axis=1, keepdims=True)
+
+        if ood_shrink:
+            Yhat_te_arr, _lam_vec = apply_ood_shrinkage(
+                Yhat_clr_arr=Yhat_te_arr,
+                Ytr_clr=Ytr_clr.loc[:, y_keep],
+                nn_min=nn_min,
+                lam_base=float(ood_lam_base),
+                lam_cap=float(ood_lam_cap),
+                return_lam=True,
+            )
+
+        Yhat_te_arr = Yhat_te_arr - Yhat_te_arr.mean(axis=1, keepdims=True)
+
+        Yhat_te_clr = pd.DataFrame(Yhat_te_arr, index=te_ids, columns=y_keep)
+        oof_pred_clr.loc[te_ids, y_keep] = Yhat_te_clr
+
+        Yhat_te_tss = clr_to_comp(Yhat_te_clr)
+        oof_pred_tss.loc[te_ids, y_keep] = Yhat_te_tss
+
+        Yte_clr_keep = Yte_clr.loc[:, y_keep]
+        dm_sc = corr_upper_triangle(aitchison_dm(Yte_clr_keep), aitchison_dm(Yhat_te_clr), method="spearman")
+
+        rows.append(
+            {
+                "fold": int(fold),
+                "n_train": int(len(tr_ids)),
+                "n_test": int(len(te_ids)),
+                "dm_spearman": float(dm_sc),
+                "neigh_k": int(neigh_k),
+                "tau_mult": float(tau_mult),
+                "lam": float(lam),
+                "y_latent_k": int(y_latent_k),
+                "metric_ridge": float(metric_ridge),
+                "split_mode": split_mode,
+                "kmeans_k_used": k_used,
+            }
+        )
+
+    folds = pd.DataFrame(rows)
+    return oof_pred_clr, oof_pred_tss, folds

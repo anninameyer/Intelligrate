@@ -163,6 +163,202 @@ def _pairwise_union_mats_tss(
     return truth_tss_u.loc[good], pred_tss_u.loc[good]
 
 
+def _pairwise_intersection_mats_tss(
+    truth_tpm: pd.DataFrame,
+    pred_tpm: pd.DataFrame,
+    *,
+    detect_threshold: float = 0.0,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    common_samples = truth_tpm.index.intersection(pred_tpm.index)
+    truth = truth_tpm.loc[common_samples]
+    pred = pred_tpm.loc[common_samples]
+    common_cols = truth.columns.intersection(pred.columns)
+    truth_i = truth.loc[:, common_cols]
+    pred_i = pred.loc[:, common_cols]
+    truth_tss = truth_i.div(truth_i.sum(axis=1).replace(0, np.nan), axis=0)
+    pred_tss = pred_i.div(pred_i.sum(axis=1).replace(0, np.nan), axis=0)
+    if detect_threshold and detect_threshold > 0:
+        thr_rel = pd.Series(0.0, index=truth_tss.index, dtype=float)
+        truth_sum = truth_i.sum(axis=1)
+        nonzero = truth_sum > 0
+        thr_rel.loc[nonzero] = detect_threshold / truth_sum.loc[nonzero]
+        truth_tss = truth_tss.mask(truth_tss.lt(thr_rel, axis=0), 0.0)
+        pred_tss = pred_tss.mask(pred_tss.lt(thr_rel, axis=0), 0.0)
+    good = (truth_tss.sum(axis=1) > 0) & (pred_tss.sum(axis=1) > 0)
+    return truth_tss.loc[good], pred_tss.loc[good]
+
+
+def dm_spearman_intersection(
+    truth_tpm: pd.DataFrame,
+    pred_tpm: pd.DataFrame,
+    *,
+    pseudocount: float,
+    detect_threshold: float = 0.0,
+) -> float:
+    truth_tss_i, pred_tss_i = _pairwise_intersection_mats_tss(
+        truth_tpm, pred_tpm, detect_threshold=detect_threshold
+    )
+    truth_clr = clr_rows(truth_tss_i, pseudocount=pseudocount)
+    pred_clr = clr_rows(pred_tss_i, pseudocount=pseudocount)
+    good = truth_clr.notna().all(axis=1) & pred_clr.notna().all(axis=1)
+    truth_clr = truth_clr.loc[good]
+    pred_clr = pred_clr.loc[good]
+    if truth_clr.shape[0] < 3:
+        return np.nan
+    return float(corr_upper_triangle(aitchison_dm(truth_clr), aitchison_dm(pred_clr), method="spearman"))
+
+
+def bray_spearman_intersection(
+    truth_tpm: pd.DataFrame,
+    pred_tpm: pd.DataFrame,
+    *,
+    detect_threshold: float = 0.0,
+) -> float:
+    truth_tss_i, pred_tss_i = _pairwise_intersection_mats_tss(
+        truth_tpm, pred_tpm, detect_threshold=detect_threshold
+    )
+    if truth_tss_i.shape[0] < 3:
+        return np.nan
+    return float(corr_upper_triangle(bray_curtis_dm(truth_tss_i), bray_curtis_dm(pred_tss_i), method="spearman"))
+
+
+def procrustes_intersection_aitchison(
+    truth_tpm: pd.DataFrame,
+    pred_tpm: pd.DataFrame,
+    *,
+    pseudocount: float,
+    detect_threshold: float = 0.0,
+) -> float:
+    truth_tss_i, pred_tss_i = _pairwise_intersection_mats_tss(
+        truth_tpm, pred_tpm, detect_threshold=detect_threshold
+    )
+    truth_clr = clr_rows(truth_tss_i, pseudocount=pseudocount)
+    pred_clr = clr_rows(pred_tss_i, pseudocount=pseudocount)
+    good = truth_clr.notna().all(axis=1) & pred_clr.notna().all(axis=1)
+    truth_clr = truth_clr.loc[good]
+    pred_clr = pred_clr.loc[good]
+    return float(
+        procrustes_similarity_from_dm(aitchison_dm(truth_clr), aitchison_dm(pred_clr), n_components=10)
+    )
+
+
+def procrustes_intersection_bray(
+    truth_tpm: pd.DataFrame,
+    pred_tpm: pd.DataFrame,
+    *,
+    detect_threshold: float = 0.0,
+) -> float:
+    truth_tss_i, pred_tss_i = _pairwise_intersection_mats_tss(
+        truth_tpm, pred_tpm, detect_threshold=detect_threshold
+    )
+    return float(
+        procrustes_similarity_from_dm(bray_curtis_dm(truth_tss_i), bray_curtis_dm(pred_tss_i), n_components=10)
+    )
+
+
+def evaluate_intersection_metrics(
+    truth_tpm: pd.DataFrame,
+    pred_tpm: pd.DataFrame,
+    *,
+    pseudocount: float,
+    detect_threshold: float = 0.0,
+    prf_thresh: float = 1e-6,
+    prf_weight: str = "binary",
+    compute_wclr: bool = False,
+    compute_jsd: bool = False,
+    compute_pathway: bool = False,
+    compute_per_pathway: bool = False,
+    ko_to_group: dict | None = None,
+    log1p_pathway: bool = True,
+) -> dict:
+    truth_tss_i, pred_tss_i = _pairwise_intersection_mats_tss(
+        truth_tpm, pred_tpm, detect_threshold=detect_threshold
+    )
+    out = {}
+    if truth_tss_i.shape[0] < 3:
+        return {
+            "dm_spearman": np.nan,
+            "bray_spearman": np.nan,
+            "procrustes_aitchison": np.nan,
+            "procrustes_bray": np.nan,
+            "soft_precision": np.nan,
+            "soft_recall": np.nan,
+            "soft_f1": np.nan,
+            "wclr_mse": np.nan if compute_wclr else 0.0,
+            "jsd": np.nan if compute_jsd else 0.0,
+            "pathway_rmse": np.nan if compute_pathway else 0.0,
+        }
+
+    truth_clr = clr_rows(truth_tss_i, pseudocount=pseudocount)
+    pred_clr = clr_rows(pred_tss_i, pseudocount=pseudocount)
+    good = truth_clr.notna().all(axis=1) & pred_clr.notna().all(axis=1)
+    truth_clr = truth_clr.loc[good]
+    pred_clr = pred_clr.loc[good]
+    truth_tss_i = truth_tss_i.loc[good]
+    pred_tss_i = pred_tss_i.loc[good]
+
+    if truth_clr.shape[0] < 3:
+        return {
+            "dm_spearman": np.nan,
+            "bray_spearman": np.nan,
+            "procrustes_aitchison": np.nan,
+            "procrustes_bray": np.nan,
+            "soft_precision": np.nan,
+            "soft_recall": np.nan,
+            "soft_f1": np.nan,
+            "wclr_mse": np.nan if compute_wclr else 0.0,
+            "jsd": np.nan if compute_jsd else 0.0,
+            "pathway_rmse": np.nan if compute_pathway else 0.0,
+        }
+
+    out["dm_spearman"] = float(
+        corr_upper_triangle(aitchison_dm(truth_clr), aitchison_dm(pred_clr), method="spearman")
+    )
+    out["bray_spearman"] = float(
+        corr_upper_triangle(bray_curtis_dm(truth_tss_i), bray_curtis_dm(pred_tss_i), method="spearman")
+    )
+    out["procrustes_aitchison"] = float(
+        procrustes_similarity_from_dm(aitchison_dm(truth_clr), aitchison_dm(pred_clr), n_components=10)
+    )
+    out["procrustes_bray"] = float(
+        procrustes_similarity_from_dm(bray_curtis_dm(truth_tss_i), bray_curtis_dm(pred_tss_i), n_components=10)
+    )
+
+    sp, sr, sf1 = prf_thresholded(
+        truth_tss_i.to_numpy(float),
+        pred_tss_i.to_numpy(float),
+        thresh=float(prf_thresh),
+        weight=str(prf_weight),
+    )
+    out["soft_precision"] = float(sp)
+    out["soft_recall"] = float(sr)
+    out["soft_f1"] = float(sf1)
+
+    if compute_wclr:
+        w_feat = feature_weights_from_variance(truth_clr)
+        out["wclr_mse"] = float(weighted_clr_mse(truth_clr, pred_clr, w_feat))
+    if compute_jsd:
+        out["jsd"] = float(jsd_rows(truth_tss_i.to_numpy(float), pred_tss_i.to_numpy(float)))
+    if compute_pathway:
+        if ko_to_group is None:
+            raise ValueError("ko_to_group is required for pathway RMSE.")
+        out["pathway_rmse"] = float(
+            pathway_rmse_tss(
+                Y_true_tss=truth_tss_i,
+                Y_pred_tss=pred_tss_i,
+                ko_to_group=ko_to_group,
+                log1p=bool(log1p_pathway),
+            )
+        )
+        if compute_per_pathway:
+            out["pathway_rmse_per_group"] = pathway_rmse_tss_per_group(
+                Y_true_tss=truth_tss_i,
+                Y_pred_tss=pred_tss_i,
+                ko_to_group=ko_to_group,
+                log1p=bool(log1p_pathway),
+            )
+    return out
+
 def dm_spearman_union(
     truth_tpm: pd.DataFrame,
     pred_tpm: pd.DataFrame,

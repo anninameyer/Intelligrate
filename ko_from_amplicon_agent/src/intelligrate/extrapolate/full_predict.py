@@ -13,6 +13,7 @@ from .metrics import (
     bray_spearman_union,
     dm_spearman_union,
     evaluate_union_metrics,
+    evaluate_intersection_metrics,
     procrustes_union_aitchison,
     procrustes_union_bray,
 )
@@ -88,9 +89,20 @@ def evaluate_paired_subset(
     compute_jsd: bool = False,
     compute_pathway: bool = False,
     compute_per_pathway: bool = False,
-    ko_to_group: dict | None = None,
+    ko_to_group: dict | str | Path | None = None,
     log1p_pathway: bool = True,
+    include_intersection: bool = True,
 ) -> dict:
+    if ko_to_group is not None and not isinstance(ko_to_group, dict):
+        ko_path = Path(ko_to_group)
+        if ko_path.exists():
+            ko_df = pd.read_csv(ko_path, sep="\t", header=None)
+            if ko_df.shape[1] < 2:
+                raise ValueError("ko_to_group file must have at least 2 columns (KO, group).")
+            ko_to_group = dict(zip(ko_df.iloc[:, 0], ko_df.iloc[:, 1]))
+        else:
+            raise ValueError(f"ko_to_group path not found: {ko_path}")
+
     metrics = {
         "dm_union_raw": dm_spearman_union(
             truth_tpm, pred_tss, pseudocount=pseudocount, detect_threshold=0.0, fillna_zero=True
@@ -144,6 +156,23 @@ def evaluate_paired_subset(
         log1p_pathway=log1p_pathway,
     )
     metrics.update(prf)
+
+    if include_intersection:
+        inter = evaluate_intersection_metrics(
+            truth_tpm,
+            pred_tss,
+            pseudocount=pseudocount,
+            detect_threshold=0.0,
+            prf_thresh=prf_thresh,
+            prf_weight=prf_weight,
+            compute_wclr=compute_wclr,
+            compute_jsd=compute_jsd,
+            compute_pathway=compute_pathway,
+            compute_per_pathway=compute_per_pathway,
+            ko_to_group=ko_to_group,
+            log1p_pathway=log1p_pathway,
+        )
+        metrics.update({f"intersection_{k}": v for k, v in inter.items()})
     return metrics
 
 
