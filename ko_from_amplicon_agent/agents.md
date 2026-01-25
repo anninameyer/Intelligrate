@@ -15,7 +15,7 @@ Maximize OBJECTIVE_DM_SPEARMAN_MEAN printed by `make score`:
 # Non-negotiables (scientific validity)
 - Always use nested CV (outer + inner) for any model or any hyperparameter search.
 - No leakage:
-  - Any data-dependent preprocessing, filtering, scaling, embeddings, or feature selection must be fit on training data only within each CV fold and then applied to validation/test.
+  - Any data-dependent preprocessing, filtering, scaling, embeddings, or feature selection must be fit on training data only within each CV fold and then applied to validation/test. The only exception: use global embedding on the full dataset (X) (if required for the specific model) which provides a more stable representation of X embeddings (since on the full dataset and not only paired samples) without target leakage.
   - The outer test fold must never influence model selection or transformations used in training.
 - Always output OOF predictions in BOTH spaces:
   - CLR predictions (oof_clr_*.tsv)
@@ -51,13 +51,12 @@ Allowed efficiency techniques:
 - parallelization is allowed if deterministic (fixed seeds), and results must remain reproducible
 
 # Workflow rules (strict)
-- Use `make score_fast` for iteration when available; only validate candidates with `make score`.
+- Use `make score_fast` for iteration 
 - After each experimental change:
-  1) Run `make score_fast` (or `make score` if fast mode not available).
+  1) Run `make score_fast` 
   2) Log the result locally (append to results/experiments_log.md).
   3) If the result is worse, revert code changes (git restore) and do NOT commit/push.
   4) If the result is better (higher model_dm_union; or same score with clearly lower runtime), then:
-     - run `make score` to confirm on the full config,
      - commit with a message including model_dm_union, picrust2_dm_union, delta_union, runtime,
      - push to origin.
 - Keep a short changelog in results/ (or use git commit messages) indicating score and runtime.
@@ -68,7 +67,7 @@ Allowed efficiency techniques:
 
 # Stop conditions
 Stop and write a report (in a new markdown file under results/ or REPORT.md) when:
-- model_dm_union >= 0.60 on `make score` (full config), AND
+- model_dm_union >= 0.60 on `make score_fast`, AND
 - model_dm_union > picrust2_dm_union (i.e., delta_union > 0).
 The report must include: best config, runtime, what changed, and whether further optimization seems promising.
 
