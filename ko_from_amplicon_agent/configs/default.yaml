@@ -6,7 +6,8 @@ data:
   ko_to_superclass: "ko_to_superclass.tsv"
 
 cv:
-  outer_splits: 10
+  # Increase outer/inner splits for slower, more stable estimates on larger paired sets.
+  outer_splits: 5
   inner_splits: 3
   seed: 0
   informed_splits: false
@@ -19,13 +20,13 @@ embed:
 # These args map directly into nested_cv_knn_metric_latent_on_embedding
 model:
   min_prev_y_abs: 1
-  y_detect_threshold: 2000.0
+  y_detect_threshold: 3000.0
   pseudocount_y: 0.0000005
 
-  neigh_k_grid: [16, 18, 20, 24]
+  neigh_k_grid: [20, 24, 28, 32]
   tau_mult_grid: [0.5, 1.0, 2.0, 4.0]
   lam_grid: [0.0]
-  y_latent_k_grid: [10, 20, 50]
+  y_latent_k_grid: [0, 10, 20]
 
   use_metric_learning: true
   metric_max_pairs: 5000
@@ -33,7 +34,7 @@ model:
 
   ood_shrink: true
   ood_shrink_inner: true
-  ood_lam_base: 0.3
+  ood_lam_base: 0.7
   ood_lam_cap: 0.5
   ood_tau_inflate: false
 
@@ -47,6 +48,22 @@ objective:
 prf:
   prf_thresh: 1.0e-6
   prf_weight: "binary"
+
+# Optional metrics (off by default)
+metrics:
+  compute_wclr: false
+  compute_jsd: false
+  compute_pathway_rmse: false
+  pathway_rmse_per_group: false
+  pathway_rmse_log1p: true
+
+# Optional grid sweep: set any numeric config here to a list to sweep.
+# Example:
+# grid:
+#   model:
+#     y_detect_threshold: [1000.0, 2000.0, 3000.0]
+#   embed:
+#     n_components: [64, 128]
 
 # Only used for the optional “global OOF DM” sanity check
 score:

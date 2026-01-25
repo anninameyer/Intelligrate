@@ -1,3 +1,10 @@
+# Deprecated: fast config is now the default. Keep this file for compatibility.
+# Edit configs/default.yaml instead.
+
+# See configs/default.yaml for full documentation and grid sweep examples.
+
+# This file mirrors default.yaml.
+
 data:
   x_full: "X_kmers_full.tsv"
   x: "X_kmers.tsv"
@@ -16,7 +23,6 @@ embed:
   pseudocount_x: 0.5
   n_components: 128
 
-# These args map directly into nested_cv_knn_metric_latent_on_embedding
 model:
   min_prev_y_abs: 1
   y_detect_threshold: 3000.0
@@ -48,7 +54,13 @@ prf:
   prf_thresh: 1.0e-6
   prf_weight: "binary"
 
-# Only used for the optional “global OOF DM” sanity check
+metrics:
+  compute_wclr: false
+  compute_jsd: false
+  compute_pathway_rmse: false
+  pathway_rmse_per_group: false
+  pathway_rmse_log1p: true
+
 score:
   min_prev_y_abs: 1
   y_detect_threshold: 1.0
