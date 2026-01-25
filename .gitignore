@@ -21,3 +21,10 @@ results/*.csv
 results/*.json
 EOF
 .venv/
+
+
+# Results: keep folder, ignore contents
+results/**
+!results/.gitkeep
+*.egg-info/
+
