@@ -1,5 +1,0 @@
-mode: distance
-feature_table: data/feature_table_rel.tsv
-metric: bray
-assume_relative: true
-output_dir: results/subset
