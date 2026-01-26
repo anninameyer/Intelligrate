@@ -1,19 +1,57 @@
 # intelligrate.extrapolate Tutorial
 
-## What extrapolate does (short)
-`intelligrate.extrapolate` learns a KNN mapping from ASV k-mer profiles (X) to KO profiles (Y) using paired
-amplicon–shotgun samples. It embeds X with CLR + SVD, optionally learns a diagonal metric, predicts in CLR
-(Optionally with a latent SVD for Y), then converts to TSS. OOD diagnostics report nearest-neighbor distances
-to the training set.
+See also:
+- `../README.md` (project overview + quickstart)
+- `TUTORIAL_subset.md` (sample subsetting workflow)
+- `notebooks/02_extrapolate_train_evaluate_full_fit_predict.ipynb` (hands‑on run)
 
-This tutorial covers installation, input formats, training, full fitting, prediction, and a full parameter
-reference for the YAML config.
+This tutorial explains **what extrapolate does**, the **inputs and outputs**, and how to run:
+- `train` (nested CV, hyperparameter selection, OOF predictions)
+- `full_fit` (final model on all paired samples)
+- `full_predict` (KOs for kmer‑only samples)
+
+If you prefer a hands‑on run, see the notebook:
+- `notebooks/02_extrapolate_train_evaluate_full_fit_predict.ipynb`
+
+---
+
+## What extrapolate does
+
+ ![Intelligrate overview](assets/extrapolate.png)
+
+`intelligrate.extrapolate` learns a **k‑NN model** that maps **ASV k‑mer profiles (X)** to **KO profiles (Y)** using paired amplicon–shotgun samples. It:
+1) embeds k‑mers (CLR + SVD),
+2) learns a k‑NN model (optionally with diagonal metric learning),
+3) predicts KO profiles in CLR space,
+4) converts predictions back to TSS (relative abundance).
+
+It also reports OOD diagnostics (nearest‑neighbor distances to the training set) and allowes KO-level and pathway (or any other mapping) correspondence evaluations as compared to the ground truth.
+
+---
+
+## Inputs and outputs
+
+**Inputs (TSV)**
+- `X_kmers.tsv` — paired samples, k‑mer features (rows = samples, columns = k‑mers)
+- `X_kmers_full.tsv` — all samples (paired + unpaired), same k‑mers
+- `Y_kos.tsv` — paired KO profiles (TPM or counts)
+- `ko_to_superclass.tsv` — KO -> pathway/superclass mapping
+- Optional: `picrust2_kos.tsv` — PICRUSt2 KO predictions for paired samples
+
+**Outputs (in `results/`)**
+- `oof_clr.tsv`, `oof_tss.tsv` — leakage‑free OOF predictions from nested CV
+- `folds.tsv` — per‑fold metrics + best params
+- `summary.json`, `summary.tsv` — overall metrics summary
+- `model.joblib` — final fitted model (from `full_fit`)
+- `pred*.clr.tsv`, `pred*.tss.tsv`, `pred*.diag.tsv` — predictions + diagnostics (from `full_predict`)
+- Optional: `pred*.metrics.tsv` — evaluation if `--y-truth` is provided
+
+---
 
 ## Installation
 Recommended: create a clean Python environment (venv or conda) with Python >= 3.10.
-This package is pure Python and should work in any standard environment that can install the dependencies.
 
-For end users (when published):
+For end users (once published):
 ```
 pip install intelligrate
 ```
@@ -23,60 +61,30 @@ For development from the repo:
 pip install -e .
 ```
 
-## Input data format
-All input tables are TSV with sample IDs in the first column and features as headers.
+---
 
-Required files (see `data/` for examples):
-- `X_kmers.tsv`: ASV k-mer features for paired samples (rows = samples, columns = k-mers)
-- `X_kmers_full.tsv`: ASV k-mers for all samples (paired + unpaired)
-- `Y_kos.tsv`: KO profiles (TPM or raw counts) for the paired samples
-- `ko_to_superclass.tsv`: two-column mapping (KO -> pathway/superclass)
+## 1) Train (nested CV, hyperparameter selection)
+Training uses **nested CV** to avoid leakage and returns **OOF predictions**.
 
-Optional:
-- `picrust2_kos.tsv`: PICRUSt2 KO predictions for paired samples (for benchmarking)
-
-## 1) Train (nested CV)
-`make score` uses `configs/default.yaml`. This is the **fast** default; change `cv.outer_splits` and
-`cv.inner_splits` to trade runtime for stability.
-
-Why: training uses **nested CV** to select hyperparameters without leakage and produce robust out‑of‑fold
-predictions for evaluation.
-
+Run with default config:
 ```
 make score
 # or
 python -m intelligrate.extrapolate.train --config configs/default.yaml
 ```
 
-Outputs written to `results/`:
-- `oof_clr.tsv` and `oof_tss.tsv`: OOF predictions in CLR and TSS
-- `folds.tsv`: per-fold best params + fold metrics
-- `summary.json` and `summary.tsv`: overall metrics (includes PICRUSt2 benchmark when provided)
-- `grid_results.tsv`: only when a grid sweep is used (see below)
+What you get in `results/`:
+- `oof_clr.tsv`, `oof_tss.tsv`
+- `folds.tsv` (fold metrics + selected params)
+- `summary.json`, `summary.tsv`
 
-Timestamped copies are also written for reproducibility.
+Key numbers to interpret:
+- `OBJECTIVE_DM_SPEARMAN_MEAN`: average fold objective during nested CV
+- `model_dm_union`: KO‑union Aitchison DM Spearman for the model
+- `picrust2_dm_union`: KO‑union Aitchison DM Spearman for PICRUSt2 (if provided)
 
-Interpretation:
-- Higher `OBJECTIVE_DM_SPEARMAN_MEAN` means predicted sample–sample relationships more closely match truth.
-- `model_dm_union` is the KO‑union Spearman score; compare against `picrust2_dm_union` when available.
-
-### Beginner-friendly example (explicit steps)
-1) Start from the default config:
-```
-cp configs/default.yaml configs/my_run.yaml
-```
-2) Run training with your config:
-```
-python -m intelligrate.extrapolate.train --config configs/my_run.yaml
-```
-3) Check outputs in `results/` (`oof_clr.tsv`, `oof_tss.tsv`, `folds.tsv`, `summary.json`, `summary.tsv`).
-
-### Hyperparameter tuning (grids)
-All numerical config values can be swept via the optional `grid` section. Any entry there becomes a
-hyperparameter sweep (cartesian product). The training script runs each combination and keeps the best
-`OBJECTIVE_DM_SPEARMAN_MEAN` result as the final outputs.
-
-Example grid:
+### Grid search (optional)
+Add a `grid:` section in your config to sweep parameters (cartesian product). Example:
 ```
 grid:
   model:
@@ -84,46 +92,15 @@ grid:
     neigh_k_grid: [[16, 20], [24, 28]]
   embed:
     n_components: [64, 128]
-  cv:
-    outer_splits: [5, 10]
 ```
+The trainer runs all combinations and keeps the best `OBJECTIVE_DM_SPEARMAN_MEAN`.
 
-### Extended example (grid + manual overrides)
-This example shows how to (a) change a non-grid parameter (e.g., `pseudocount_y`) and (b) run a grid
-for other values.
+---
 
-1) Copy the default config:
-```
-cp configs/default.yaml configs/my_grid.yaml
-```
-2) Edit `configs/my_grid.yaml` and update:
-```
-model:
-  pseudocount_y: 0.000001
+## 2) Full fit (final model on all paired samples)
+This trains a **single deployable model** on all paired samples using fixed hyperparameters.
 
-grid:
-  model:
-    y_detect_threshold: [1000.0, 2000.0, 3000.0]
-    tau_mult_grid: [[0.5, 1.0], [2.0, 4.0]]
-  embed:
-    n_components: [64, 128]
-```
-3) Run:
-```
-python -m intelligrate.extrapolate.train --config configs/my_grid.yaml
-```
-
-Notes:
-- Any value in `grid` can be a list. The trainer will try all combinations.
-- Non-grid values (like `pseudocount_y` above) are treated as fixed for that entire sweep.
-
-## 2) Full fit (final model)
-Fit a final model on the paired data and save it with joblib.
-
-Why: this trains a single deployable model on all paired samples, using fixed hyperparameters.
-
-Step A: fit and save the embedding (one-time). For consistency with training, reuse the same parameters
-from config:
+### Step A — Fit and save the embedding
 ```
 python - <<'PY'
 import joblib
@@ -142,7 +119,7 @@ joblib.dump(embed, 'results/embed.joblib')
 PY
 ```
 
-Step B: fit the final model:
+### Step B — Fit the full model
 ```
 python -m intelligrate.extrapolate.full_fit \
   --x data/X_kmers.tsv \
@@ -161,27 +138,23 @@ python -m intelligrate.extrapolate.full_fit \
   --ood-lam-cap 0.80
 ```
 
-## 3) Full predict (new samples)
-Predict KOs for any k-mer table (paired or unpaired). The command writes:
-- `*.clr.tsv` (CLR predictions)
-- `*.tss.tsv` (TSS predictions)
-- `*.diag.tsv` (OOD NN distance diagnostics)
+---
 
-Why: use the trained model to extrapolate KOs to samples without shotgun data and inspect OOD diagnostics
-to gauge how far predictions are from the training manifold.
-
-Interpretation:
-- Larger `ood_nn_min` suggests a sample is farther from the training manifold and predictions may be less reliable.
-
+## 3) Full predict (kmer‑only samples)
+Predict KOs for any k‑mer table (paired or unpaired):
 ```
 python -m intelligrate.extrapolate.full_predict \
   --model results/model.joblib \
   --x data/X_kmers_full.tsv \
   --out-prefix results/pred
 ```
+Outputs:
+- `results/pred.clr.tsv`
+- `results/pred.tss.tsv`
+- `results/pred.diag.tsv` (OOD diagnostics)
 
 ### Optional evaluation on paired subset
-If ground truth KOs exist for a subset, pass `--y-truth` to compute the same metrics as `train`:
+If you also pass `--y-truth`, the same metrics as in `train` are computed:
 ```
 python -m intelligrate.extrapolate.full_predict \
   --model results/model.joblib \
@@ -191,34 +164,29 @@ python -m intelligrate.extrapolate.full_predict \
 ```
 This writes `results/pred_paired.metrics.tsv`.
 
-### Leakage-free evaluation on paired samples (recommended)
-**Important:** the full-fit model is trained on *all paired samples*. Evaluating those same paired samples
-with full-fit predictions is optimistic (leakage).
+---
 
-To get leakage-free paired predictions **with fixed hyperparameters**, run a single CV pass with fixed
-params and replace the paired rows in your full prediction table. This is implemented in the API helper:
-`fixed_param_oof_knn_on_embedding` (see the notebook).
+## Leakage‑free paired evaluation (important!!!)
+**Full‑fit** is trained on *all paired samples*, so evaluating those same samples is too optimistic.
+If you want leakage‑free predictions **with fixed hyperparameters**, use the helper
+`fixed_param_oof_knn_on_embedding` (see notebook) and replace paired rows in the full prediction table with these out-of-fold predictions instead.
 
-Notes:
-- Set `outer_splits = len(X)` to approximate leave-one-out (slow).
-- The default `outer_splits` gives a faster, still leakage-free estimate.
-- The notebook writes `oof_fixed_tss.tsv` and then **overwrites `pred_full.*`** so paired rows are OOF,
-  while unpaired rows remain full-fit predictions.
+---
 
 ## PICRUSt2 comparison
-If `picrust2_kos.tsv` is provided in the config, `train` reports the same metrics for PICRUSt2 and logs:
-- `picrust2_dm_union`
-- `model_dm_union`
-- `delta_union = model_dm_union - picrust2_dm_union`
+If `picrust2_kos.tsv` is provided in the config, `train` reports PICRUSt2 metrics and logs:
+- `picrust2_dm_union`, `model_dm_union`, `delta_union`
 
-Why: this provides a baseline comparison against PICRUSt2 under identical metrics.
+Use these to compare against the baseline under identical scoring.
+
+---
 
 ## Config reference (all parameters)
-Below is a concise reference for **every parameter in `configs/default.yaml`**.
+All parameters live in `configs/default.yaml` (and are mirrored in `configs/fast.yaml`).
 
 ### data
-- `x_full`: filename for all ASV k-mer samples
-- `x`: filename for paired ASV k-mers (subset of `x_full`)
+- `x_full`: filename for all k‑mer samples (paired + unpaired)
+- `x`: filename for paired k‑mer samples
 - `y`: filename for paired KO table
 - `picrust2`: optional PICRUSt2 KO table (paired samples)
 - `ko_to_superclass`: KO -> pathway/superclass mapping
@@ -227,36 +195,36 @@ Below is a concise reference for **every parameter in `configs/default.yaml`**.
 - `outer_splits`: outer CV folds (higher = slower, more stable)
 - `inner_splits`: inner CV folds for hyperparameter selection
 - `seed`: random seed for CV and SVDs
-- `informed_splits`: use KMeans-informed splits (prevents target leakage by clustering X only)
+- `informed_splits`: use KMeans‑informed splits (clusters X only; avoids target leakage)
 
 ### embed
-- `min_prev_x_abs`: minimum prevalence for k-mers kept in embedding
+- `min_prev_x_abs`: minimum prevalence for k‑mers kept in embedding
 - `pseudocount_x`: pseudocount for CLR in X embedding
 - `n_components`: SVD components for X embedding
 
 ### model
-- `min_prev_y_abs`: minimum prevalence for KO features retained per fold
+- `min_prev_y_abs`: minimum prevalence for KOs retained per fold
 - `y_detect_threshold`: absolute count threshold used in prevalence filtering
 - `pseudocount_y`: pseudocount for CLR in Y
-- `neigh_k_grid`: KNN neighborhood sizes (grid)
-- `tau_mult_grid`: kernel width multiplier (grid)
+- `neigh_k_grid`: k‑NN neighborhood sizes (grid)
+- `tau_mult_grid`: kernel width multipliers (grid)
 - `lam_grid`: shrinkage toward global mean (grid)
-- `y_latent_k_grid`: number of Y latent SVD components (grid; 0 = no latent)
-- `use_metric_learning`: whether to learn diagonal metric in embedding space
-- `metric_max_pairs`: max pairs for metric learning sampling
+- `y_latent_k_grid`: number of latent Y SVD components (grid; 0 = no latent)
+- `use_metric_learning`: learn diagonal metric in embedding space
+- `metric_max_pairs`: max pairs sampled for metric learning
 - `metric_ridge_grid`: ridge values for metric learning (grid)
 - `ood_shrink`: enable OOD shrinkage
-- `ood_shrink_inner`: also apply OOD shrinkage during inner CV
+- `ood_shrink_inner`: apply OOD shrinkage during inner CV
 - `ood_lam_base`: base shrinkage coefficient for OOD
 - `ood_lam_cap`: cap for OOD shrinkage
 - `ood_tau_inflate`: inflate tau based on OOD distances
 
 ### objective
-- `w_dm`: weight for primary objective (Aitchison DM Spearman)
+- `w_dm`: weight for Aitchison DM Spearman (primary)
 - `w_wclr`: weight for weighted CLR MSE (optional)
 - `w_pw_rmse`: weight for pathway RMSE (optional)
 - `w_softf1`: weight for thresholded F1 (optional)
-- `w_jsd`: weight for JSD (optional)
+- `w_jsd`: weight for Jensen‑Shannon divergence (optional)
 
 ### prf
 - `prf_thresh`: threshold for presence/absence metrics in TSS
@@ -264,9 +232,9 @@ Below is a concise reference for **every parameter in `configs/default.yaml`**.
 
 ### metrics (optional reporting only)
 - `compute_wclr`: compute weighted CLR MSE
-- `compute_jsd`: compute Jensen-Shannon divergence
+- `compute_jsd`: compute Jensen‑Shannon divergence
 - `compute_pathway_rmse`: compute pathway RMSE (overall)
-- `pathway_rmse_per_group`: compute per-pathway RMSE table
+- `pathway_rmse_per_group`: compute per‑pathway RMSE table
 - `pathway_rmse_log1p`: log1p transform for pathway RMSE
 
 ### score
@@ -281,9 +249,44 @@ grid:
   <section>:
     <parameter>: [values...]
 ```
-The trainer runs the cartesian product of all grid values and keeps the best run.
+The trainer runs the cartesian product and keeps the best `OBJECTIVE_DM_SPEARMAN_MEAN`.
 
-## Notes for beginners
-- KO-union evaluation compares predictions to truth over the union of KOs, then computes CLR and Aitchison distances.
-- The OOD diagnostics in `*.diag.tsv` help identify samples that are far from the training manifold.
-- Use the default config for quick iteration; increase `cv.outer_splits` and `cv.inner_splits` for more robust scoring.
+## CLI parameter reference (full_fit / full_predict)
+These are CLI arguments (not in the YAML config):
+
+### full_fit
+- `--x`: paired k‑mer table (TSV)
+- `--y`: paired KO table (TSV)
+- `--embed-path`: saved embedding (joblib)
+- `--model-out`: output model path (joblib)
+- `--min-prev-y-abs`: KO prevalence filter
+- `--y-detect-threshold`: detection threshold for KO prevalence
+- `--pseudocount-y`: CLR pseudocount for Y
+- `--neigh-k`: k‑NN neighborhood size
+- `--tau-mult`: kernel width multiplier
+- `--lam`: shrinkage toward global mean
+- `--y-latent-k`: number of latent Y SVD components
+- `--use-metric-learning`: enable diagonal metric learning
+- `--metric-ridge`: ridge for metric learning
+- `--metric-max-pairs`: max pairs for metric learning
+- `--tau-scale-k-nn`: neighbor count for tau scaling
+- `--ood-shrink`: enable OOD shrinkage
+- `--ood-lam-base`: base OOD shrinkage
+- `--ood-lam-cap`: max OOD shrinkage
+- `--seed`: random seed
+
+### full_predict
+- `--model`: trained model path (joblib)
+- `--x`: k‑mer table to predict
+- `--out-prefix`: output prefix for `*.clr.tsv`, `*.tss.tsv`, `*.diag.tsv`
+- `--y-truth`: optional paired KO table for evaluation
+- `--pseudocount`: CLR pseudocount for evaluation
+- `--detect-threshold`: detection threshold for union evaluation
+- `--prf-thresh`: threshold for precision/recall/F1
+- `--prf-weight`: weighting scheme for precision/recall/F1
+
+
+
+See also:
+- `../README.md`
+- `TUTORIAL_subset.md`

@@ -1,82 +1,90 @@
 # intelligrate.subset Tutorial
 
-## What this does (short)
-`intelligrate.subset` helps select a representative subset of samples for shotgun sequencing by balancing:
+See also:
+- `../README.md` (project overview + quickstart)
+- `TUTORIAL_extrapolate.md` (KO extrapolation workflow)
+- `notebooks/01_subset_kmedoids_ga_selection.ipynb` (hands‑on run)
+
+This tutorial explains **what subset does**, the **inputs and outputs**, and how to run it via:
+- the Python API (recommended)
+- the CLI configs (same steps)
+
+If you prefer a hands‑on run, see the notebook:
+- `notebooks/01_subset_kmedoids_ga_selection.ipynb`
+
+---
+
+## What subset does
+ ![Intelligrate overview](assets/subset.png)
+
+`intelligrate.subset` helps select a **representative subset** of samples for shotgun sequencing by balancing:
 - **diversity** in feature space
-- **geographic spread** (optional)
 - **metadata coverage** (categories you care about)
+- **geographic spread** (optional)
 
 It does this using:
-- Distance matrices from feature tables
-- k selection diagnostics
-- k‑medoids clustering
-- A genetic algorithm (GA) that balances diversity and metadata representation
+1) a distance matrix from a feature table,
+2) k selection diagnostics,
+3) k‑medoids clustering,
+4) a genetic algorithm (GA) to pick the final subset.
 
-This tutorial is beginner‑friendly and runnable end‑to‑end using the provided example data.
+---
 
-## Why subset?
-Shotgun sequencing is expensive. Subsetting lets you select a smaller number of samples that still capture
-the diversity and metadata structure of the full dataset, improving downstream generalization while keeping
-costs manageable.
+## Inputs and outputs (at a glance)
 
-## Install the package
-Recommended: use a clean Python >= 3.10 environment (venv or conda).
+**Inputs (TSV)**
+- `feature_table_rel.tsv` — samples x features (relative abundance preferred)
+- `metadata.tsv` — sample metadata (categories + optional lat/long)
+
+**Outputs (in `results/subset/` by default)**
+- `distance.tsv` + `distance_meta.json`
+- `k_diagnostics.tsv` + `k_diagnostics.png`
+- `kmedoids_clusters.tsv` + `kmedoids_cluster_counts.tsv`
+- `ga_selected_samples.tsv` + `ga_best_scores.tsv` + `ga_fitness_array.tsv` + `ga_meta.json`
+
+---
+
+## Installation
+Recommended: clean Python >= 3.10 environment.
 
 ```
 pip install intelligrate
-```
-
-For development from the repo:
-```
+# or for development
 pip install -e .
 ```
 
-## Example data
-We ship small example files:
-- `data/feature_table_rel.tsv`
-- `data/metadata.tsv`
+---
 
-## Python API (recommended, with explanations)
-The API is the primary interface; the CLI simply wraps these functions.
+## Python API (recommended)
+This is the clearest way to run the workflow end‑to‑end.
 
 ### Step 1 — Compute a distance matrix
-We compute a sample–sample distance matrix so all later steps (k diagnostics, k‑medoids, GA) use the same
-notion of “distance” between samples.
-
 ```
-from intelligrate.subset import compute_distance_matrix
 import pandas as pd
+from intelligrate.subset import compute_distance_matrix
 
 ft = pd.read_csv('data/feature_table_rel.tsv', sep='\t', index_col=0)
 D = compute_distance_matrix(ft, metric='bray', assume_relative=True)
 ```
 
 ### Step 2 — Suggest k (diagnostics)
-We evaluate k values so you can **inspect diagnostics** and pick k. We do **not** auto‑pick k.
-
 ```
 from intelligrate.subset import suggest_k
 
 metrics = suggest_k(D, ft, k_range=range(2, 5), gap_B=2, random_state=42)
 ```
+Use these diagnostics to **choose k** (this is not auto‑selected).
 
 ### Step 3 — Fit k‑medoids
-We cluster samples into k medoids so the GA can preserve cluster‑level representation while optimizing
-metadata balance and diversity.
-
 ```
 from intelligrate.subset import fit_kmedoids
 
 km = fit_kmedoids(D, k=3, random_state=42)
 ```
 
-### Step 4 — GA subset selection
-We run a genetic algorithm to select a subset that balances diversity (distance + geography) and metadata
-representation, while honoring any fixed‑include constraints.
-
+### Step 4 — Run the GA to select samples
 ```
 from intelligrate.subset import ga_subset
-import pandas as pd
 
 md = pd.read_csv('data/metadata.tsv', sep='\t', index_col=0)
 selected, best_scores, fitness = ga_subset(
@@ -88,18 +96,15 @@ selected, best_scores, fitness = ga_subset(
     population_size=10,
     generations=3,
     random_state=42,
-    fixed_include=[
-        'vubh091','vubh077','vubh075','vubh076','ubzh106','ubzh035','ubzh037',
-        'ubzh051','ibbh058','ibbh028','4c44e','2cd6e','5eadf','ubzh054b',
-        'ubzh006','ubzh033','vubh081'
-    ],
 )
 ```
 
-## CLI examples (same steps)
-If you prefer the CLI, use these example configs.
+---
 
-### Step 1 — Compute a distance matrix
+## CLI workflow (same steps)
+These configs live in `configs/` and write to `results/subset/`.
+
+### Step 1 — Distance matrix
 Config (`configs/subset_distance.yaml`):
 ```
 mode: distance
@@ -156,9 +161,6 @@ Outputs:
 - `results/subset/kmedoids_cluster_counts.tsv`
 
 ### Step 4 — GA subset selection
-We include example fixed IDs (from the notebook) in `configs/fixed_include.tsv`.
-If an ID is not present in the example dataset it is ignored automatically.
-
 Config (`configs/subset_ga.yaml`):
 ```
 mode: ga
@@ -203,43 +205,57 @@ Outputs:
 - `results/subset/ga_fitness_array.tsv`
 - `results/subset/ga_meta.json`
 
-## Parameter reference (subset configs)
-Below is a concise reference for parameters used in the example configs.
+---
+
+## Parameter reference (all parameters)
 
 ### distance
-- `feature_table`: TSV with samples x features
+- `feature_table`: samples x features (TSV)
 - `metric`: `bray` | `jaccard` | `aitchison`
 - `assume_relative`: set true if rows already sum to 1
 - `pseudocount`: used for CLR in `aitchison`
-- `output_dir`: where outputs are written
+- `output_dir`: output folder
+- `distance_out`: optional custom path for `distance.tsv`
 
 ### suggest_k
 - `distance_matrix`: path to precomputed distance matrix
 - `k_min`, `k_max`: range of k values to test
-- `gap_B`: number of reference datasets for gap statistic
+- `gap_B`: reference sets for gap statistic
 - `seed`: random seed
-- `plot`: whether to save a diagnostic plot
+- `plot`: save diagnostic plot
+- `feature_table`: the feature table used for alignment checks
+- `output_dir`: output folder
 
 ### kmedoids
 - `k`: chosen number of clusters
 - `seed`: random seed
+- `distance_matrix`: path to precomputed distance matrix
+- `output_dir`: output folder
 
 ### ga
 - `cluster_table`: k‑medoids cluster assignments
-- `metadata_table`: sample metadata
-- `total_samples`: number of samples to select (rounded down to divisible by k)
-- `balance_vars`: metadata fields to balance
+- `metadata_table`: metadata table
+- `total_samples`: number of samples to select
+- `balance_vars`: metadata columns to balance
 - `metadata_weights`: optional weights per metadata field
-- `coord_vars`: [latitude, longitude] field names
+- `coord_vars`: latitude/longitude column names (optional)
 - `population_size`, `generations`: GA runtime settings
-- `min_category_n`: categories must have at least this many samples globally
-- `min_per_category`: each included category must have at least this many samples in the subset
+- `min_category_n`, `min_per_category`: category coverage constraints
+- `grid_size`: spacing for geographic grid term (if coords are used)
 - `grid_weight`, `distance_weight`, `balance_weight`: objective weights
 - `balance_scale`: scales metadata balance term
-- `hard_penalty_weight`: penalty for underrepresented categories
-- `fixed_include`: TSV with one sample ID per line to always include
-- `fixed_exclude`: TSV with one sample ID per line to always exclude
+- `hard_penalty_weight`: penalty for under‑represented categories
+- `fixed_include`, `fixed_exclude`: fixed IDs to force include/exclude
+- `seed`: random seed
+- `output_dir`: output folder
 
-## Notes
-- The module does **not** align tables; it only reports overlap counts.
-- GA runtime depends on population size and generations; start small and scale up.
+---
+
+## Additional notes
+- `suggest_k` provides diagnostics; YOU choose k based on those curves.
+- Start with small GA settings (small `population_size` and `generations`) to test quickly, increasing those makes results more stable, but runs slower.
+- If your feature table is not relative abundance, set `assume_relative: false` (or normalize first).
+
+See also:
+- `../README.md`
+- `TUTORIAL_extrapolate.md`
