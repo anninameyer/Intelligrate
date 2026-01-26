@@ -22,7 +22,7 @@ Learn a mapping from a *starting layer* (e.g., amplicon marker gene k-mers) to a
 
 1. **Sometimes, you cannot follow up everything.** `subset` helps you pick the most informative samples under cost/time/capacity constraints.  
 2. **You still want cohort-wide insights.** `extrapolate` uses the paired subset to predict follow-up profiles for the full dataset.  
-3. **End-to-end reproducibility.** The workflows allow you to reproducibly select representative subsets and extrapolate findings from the subsets back to the full dataset through transparent mapping-fine-tuning and evaluation of mapping performance.
+3. **End-to-end reproducibility.** The workflows allow you to reproducibly select representative subsets and extrapolate findings from the subsets back to the full dataset through transparent fine-tuning and evaluation of prediction performance.
 
 ---
 
