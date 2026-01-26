@@ -1,79 +1,91 @@
 # intelligrate
 
-Two workflows in one package:
-1) **subset**: pick a representative subset of samples for shotgun sequencing
-2) **extrapolate**: predict KO profiles from amplicon k-mers
+**Design representative data subsets** (e.g., for shotgun sequencing) **and extrapolate the follow-up results back to the full cohort** (e.g., predict KO profiles from amplicon k-mers) — one Python package, two workflows.
 
-Everything is explained in plain words below, with runnable notebooks.
+## What Intelligrate does
 
-## Why these workflows?
-**Why subset?** Shotgun sequencing is expensive. Subsetting lets you pick a *small, diverse, and metadata‑balanced* group
-that still represents the full dataset well. This improves downstream generalization and keeps costs under control.
+### 1) `subset`
+Select a *diversity- and metadata-balanced* subset of samples that still represents your full dataset well.
 
-**Why extrapolate?** Only a fraction of samples may have shotgun data. Extrapolate learns a mapping from amplicon
-k‑mers to KO profiles on the paired samples, then predicts KOs for the rest.
+**Typical use case:** choose samples for, e.g., more cost- and/or time-expensive follow-up assays (shotgun, metabolomics, isolate screening, long-reads).
 
-**How they connect:** subset picks which samples get shotgun; extrapolate uses those paired samples to predict the rest.
+
+### 2) `extrapolate`
+Learn a mapping from a *starting layer* (e.g., amplicon marker gene k-mers) to a *follow-up layer* (e.g., shotgun-derived KO profiles) on a subset of paired samples, then predict follow-up profiles for the full dataset.
+
+**Typical use case:** infer KO profiles for all samples when only a subset has shotgun sequencing data.
+ 
+ ![Intelligrate overview](docs/assets/intelligrate_overview.png)
+---
+
+## Why these two workflows belong together
+
+1. **Sometimes, you cannot follow up everything.** `subset` helps you pick the most informative samples under cost/time/capacity constraints.  
+2. **You still want cohort-wide insights.** `extrapolate` uses the paired subset to predict follow-up profiles for the full dataset.  
+3. **End-to-end reproducibility.** The workflows allow you to reproducibly select representative subsets and extrapolate findings from the subsets back to the full dataset through transparent mapping-fine-tuning and evaluation of mapping performance.
+
+---
 
 ## Table of contents
 - [Install](#install)
 - [Quickstart: subset](#quickstart-subset)
 - [Quickstart: extrapolate](#quickstart-extrapolate)
 - [Tutorials and notebooks](#tutorials-and-notebooks)
-- [Input table formats](#input-table-formats)
+- [Input formats](#input-formats)
 - [Outputs](#outputs)
-- [Parameter guide (simple words)](#parameter-guide-simple-words)
+- [Parameter guide](#parameter-guide)
+
+---
 
 ## Install
-### From a GitHub tag
-```
-pip install "intelligrate @ git+https://github.com/ORG/REPO.git@vX.Y.Z"
-```
-Replace `ORG/REPO` and `vX.Y.Z` with the repo and tag you want.
 
-### From a local checkout (dev)
-```
-pip install -e .
+### From a GitHub tag
+```bash
+pip install "intelligrate @ git+https://github.com/ORG/REPO.git@vX.Y.Z"
 ```
 
 ## Quickstart: subset
-Use the Python API (recommended for clarity). Full runnable example in the notebook.
+Full runnable example in the provided [Tutorials and notebooks](#tutorials-and-notebooks).
 
-**Rationale (simple):** pick a subset that is (1) diverse in feature space, (2) spatially spread, and (3) balanced across key metadata.
+**Rationale:** pick a subset that is (i) diverse in feature space, (ii) spatially spread (optional), and (iii) balanced across key metadata.
 
 ```
 python - <<'PY'
 import pandas as pd
 from intelligrate.subset import compute_distance_matrix, suggest_k, fit_kmedoids, ga_subset
 
-ft = pd.read_csv('data/feature_table_rel.tsv', sep='\t', index_col=0)
-md = pd.read_csv('data/metadata.tsv', sep='\t', index_col=0)
+ft = pd.read_csv("data/feature_table_rel.tsv", sep="\t", index_col=0)  # samples x features
+md = pd.read_csv("data/metadata.tsv", sep="\t", index_col=0)           # samples x metadata
 
-D = compute_distance_matrix(ft, metric='bray', assume_relative=True)
+# 1) distances
+D = compute_distance_matrix(ft, metric="bray", assume_relative=True)
 
-k_result = suggest_k(D, ft, k_range=range(2, 8), gap_B=3, random_state=42)
+# 2) (optional) pick a reasonable k via diagnostics
+_ = suggest_k(D, ft, k_range=range(2, 8), gap_B=3, random_state=42)
 
+# 3) cluster and run GA subset selection
 kmed = fit_kmedoids(D, k=5, random_state=42)
 
 selected, best_scores, fitness = ga_subset(
-    cluster_df=kmed['cluster_df'],
+    cluster_df=kmed["cluster_df"],
     metadata_df=md,
     total_samples=30,
-    balance_vars=['r_samp_country', 'r_samp_source', 'hub'],
-    coord_vars=('latitude', 'longitude'),
+    balance_vars=["r_samp_country", "r_samp_source", "hub"],
+    coord_vars=("latitude", "longitude"),
     population_size=30,
     generations=20,
     random_state=42,
 )
 
-selected.to_csv('results/subset/ga_selected_samples.tsv', sep='\t')
+selected.to_csv("results/subset/ga_selected_samples.tsv", sep="\t")
 PY
+
 ```
 
 ## Quickstart: extrapolate
-Use the Python API (recommended for transparency). Full runnable example in the notebook.
+Full runnable example in the provided [Tutorials and notebooks](#tutorials-and-notebooks).
 
-**Rationale (simple):** fit on paired samples, then predict KOs for all other samples with only amplicon k‑mers.
+**Rationale:** fit on paired samples (X → Y), then predict Y for all samples with only X (e.g., predict KO profiles from marker gene amplicons).
 
 ```
 python - <<'PY'
@@ -83,13 +95,24 @@ from intelligrate.extrapolate.embedding import fit_x_embedding_svd_clr
 from intelligrate.extrapolate.full_fit import fit_final_model, save_model
 from intelligrate.extrapolate.full_predict import predict_final_model
 
-X_full = pd.read_csv('data/X_kmers_full.tsv', sep='\t', index_col=0)
-X = pd.read_csv('data/X_kmers.tsv', sep='\t', index_col=0)
-Y = pd.read_csv('data/Y_kos.tsv', sep='\t', index_col=0)
+# X_full: all samples with amplicon k-mers
+# X: paired subset (same feature space), matched to Y rows
+# Y: KO profiles (TPM/TSS) for paired subset
+X_full = pd.read_csv("data/X_kmers_full.tsv", sep="\t", index_col=0)
+X      = pd.read_csv("data/X_kmers.tsv",      sep="\t", index_col=0)
+Y      = pd.read_csv("data/Y_kos.tsv",        sep="\t", index_col=0)
 
-embed = fit_x_embedding_svd_clr(X_full, min_prev_x_abs=14, pseudocount_x=0.5, n_components=128, seed=0)
-joblib.dump(embed, 'results/embed.joblib')
+# 1) fit reusable X embedding on the full X feature space
+embed = fit_x_embedding_svd_clr(
+    X_full,
+    min_prev_x_abs=14,
+    pseudocount_x=0.5,
+    n_components=128,
+    seed=0,
+)
+joblib.dump(embed, "results/embed.joblib")
 
+# 2) fit final model on paired subset
 model = fit_final_model(
     X_train=X,
     Y_train_tpm=Y,
@@ -110,12 +133,13 @@ model = fit_final_model(
     ood_lam_cap=0.5,
     seed=0,
 )
+save_model(model, "results/model.joblib")
 
-save_model(model, 'results/model.joblib')
-
+# 3) predict for all samples in X_full
 Yhat_clr, Yhat_tss, diag = predict_final_model(X_full, model)
-Yhat_tss.to_csv('results/pred_full.tss.tsv', sep='\t')
+Yhat_tss.to_csv("results/pred_full.tss.tsv", sep="\t")
 PY
+
 ```
 
 ## Tutorials and notebooks
@@ -135,9 +159,9 @@ All inputs are TSV with:
 
 Example files in `data/`:
 - `feature_table_rel.tsv`, `metadata.tsv` (subset workflow)
-- `X_kmers.tsv`, `X_kmers_full.tsv` (k-mer features)
+- `X_kmers.tsv`, `X_kmers_full.tsv` (extrapolate inputs (k-mer features))
 - `Y_kos.tsv` (KO profiles for paired samples)
-- `picrust2_kos.tsv` (optional baseline)
+- `picrust2_kos.tsv` (optional baseline for comparison of KO predictions)
 
 ## Outputs
 All outputs go to `results/` by default.
@@ -155,11 +179,7 @@ Extrapolate outputs:
 - `pred*.clr.tsv`, `pred*.tss.tsv`, `pred*.diag.tsv` (full_predict outputs)
 - `pred*.metrics.tsv` (metrics when truth is provided)
 
-**Leakage‑free note (important):** evaluation on paired samples must use out‑of‑fold predictions.
-The tutorial notebook overwrites `pred_full.*` so paired rows are OOF (leakage‑free), while unpaired rows
-remain full‑fit predictions.
-
-## Parameter guide (simple words)
+## Parameter guide
 ### subset (intelligrate.subset)
 These are the main functions used in the subset notebook. All parameters are editable in Python.
 
@@ -204,7 +224,7 @@ These are the main functions used in the subset notebook. All parameters are edi
 - `hard_penalty_weight`: penalty for violating minimum category counts
 
 ### extrapolate (intelligrate.extrapolate)
-Key steps are: embed X, train with nested CV, fit a final model, predict.
+Key steps are: embed X, train with nested CV, fit a final model, predict for all samples.
 
 **fit_x_embedding_svd_clr(X_full, min_prev_x_abs, pseudocount_x, n_components, seed)**
 - `min_prev_x_abs`: drop rare k-mers (less than this many samples)
@@ -251,4 +271,4 @@ Training uses these parameter groups:
 - `prf_thresh`, `prf_weight`: precision/recall configuration
 - Optional: `compute_wclr`, `compute_jsd`, `compute_pathway`, `compute_per_pathway`
 
-For full explanations and runnable examples, see the tutorials and notebooks above.
+For full explanations and runnable examples, see the [Tutorials and notebooks](#tutorials-and-notebooks) above.
