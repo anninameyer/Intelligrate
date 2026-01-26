@@ -97,6 +97,35 @@ The trainer runs all combinations and keeps the best `OBJECTIVE_DM_SPEARMAN_MEAN
 
 ---
 
+## Optional: fixed-parameter sweep (stability-first)
+If you want a **single fixed hyperparameter set** that performs well in leakage‑free OOF (i.e., stable
+when parameters are fixed), run the fixed‑param sweep. This evaluates each combo using
+`fixed_param_oof_knn_on_embedding` and ranks by `dm_union`.
+
+Add to your config:
+```
+fixed_param_sweep:
+  neigh_k: [20, 24, 28]
+  tau_mult: [0.5, 1.0]
+  y_latent_k: [10, 20]
+  metric_ridge: [1.0, 2.5]
+```
+
+You can sweep any fixed‑parameter field (e.g., `lam`, `min_prev_y_abs`, `y_detect_threshold`,
+`pseudocount_y`, `ood_lam_base`, `ood_lam_cap`, `use_metric_learning`, `outer_splits`, `seed`).
+**Tip:** keep sweeps to ~3–4 parameters at a time; runtime grows quickly with larger grids.
+**Important:** if a parameter is **not** listed in `fixed_param_sweep`, the sweep will use the value
+from config. For parameters with a `*_grid` (e.g., `neigh_k_grid`), it will use that grid list.
+To force a single value, list it explicitly in `fixed_param_sweep`.
+
+Run:
+```
+python -m intelligrate.extrapolate.fixed_param_sweep --config configs/default.yaml --out results/fixed_param_sweep.tsv
+```
+
+The output is a ranked table. Use the top row as your **fixed hyperparameter set** for
+`fixed_param_oof_knn_on_embedding` and `full_fit`.
+
 ## 2) Full fit (final model on all paired samples)
 This trains a **single deployable model** on all paired samples using fixed hyperparameters.
 
@@ -182,7 +211,7 @@ Use these to compare against the baseline under identical scoring.
 ---
 
 ## Config reference (all parameters)
-All parameters live in `configs/default.yaml` (and are mirrored in `configs/fast.yaml`).
+All parameters live in `configs/default.yaml`.
 
 ### data
 - `x_full`: filename for all k‑mer samples (paired + unpaired)

@@ -87,6 +87,9 @@ Full runnable example in the provided [Tutorials and notebooks](#tutorials-and-n
 
 **Rationale:** fit on paired samples (X → Y), then predict Y for all samples with only X (e.g., predict KO profiles from marker gene amplicons).
 
+Optional stability step: run `fixed_param_sweep` to find a **single fixed hyperparameter set**
+that performs best in leakage‑free OOF (see tutorial).
+
 ```
 python - <<'PY'
 import joblib
@@ -263,6 +266,22 @@ Training uses these parameter groups:
 - Runs a single CV pass with **fixed hyperparameters** (no inner CV).
 - Use for leakage‑free predictions on paired samples.
 - Set `outer_splits = len(X)` to approximate leave‑one‑out (slow).
+
+**fixed_param_sweep (run_fixed_param_sweep / CLI)**
+- Runs a grid of **fixed‑parameter** OOF evaluations and ranks by `dm_union`.
+- Use to find a single hyperparameter set that stays strong when fixed.
+- Add `fixed_param_sweep` to your config and run:
+  - `python -m intelligrate.extrapolate.fixed_param_sweep --config configs/default.yaml`
+- Config block:
+  - **Important:** if a parameter is **not** listed in `fixed_param_sweep`, the sweep will use
+    the corresponding value from config. For parameters with a `*_grid` (e.g., `neigh_k_grid`),
+    it will use that grid list. To force a single value, list it explicitly in `fixed_param_sweep`.
+  - You can sweep **any** fixed‑parameter field used by `fixed_param_oof_knn_on_embedding`.
+  - Common: `neigh_k`, `tau_mult`, `y_latent_k`, `metric_ridge`, `lam`,
+    `min_prev_y_abs`, `y_detect_threshold`, `pseudocount_y`, `ood_lam_base`, `ood_lam_cap`.
+  - You may also sweep `outer_splits`, `seed`, `use_metric_learning`, `metric_max_pairs`,
+    `tau_scale_k_nn`, `ood_shrink`, `ood_tau_inflate`, `ood_tau_gamma`, `informed_splits`.
+  - **Tip:** keep sweeps to ~3–4 parameters at a time to avoid long runtimes.
 
 **evaluate_paired_subset(truth_tpm, pred_tss, pseudocount, detect_threshold, prf_thresh, prf_weight, ...)**
 - `truth_tpm`: true KO table
