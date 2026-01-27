@@ -256,7 +256,7 @@ def _run_once(cfg: dict, *, data_dir: Path, out_dir: Path) -> dict:
         Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=True
     )
     model_dm_union = dm_spearman_union(
-        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=False
+        Y, oof_tss, pseudocount=union_pseudo, detect_threshold=union_detect, fillna_zero=True
     )
     model_bray_union_raw = bray_spearman_union(Y, oof_tss, detect_threshold=0.0, fillna_zero=True)
     model_bray_union = bray_spearman_union(Y, oof_tss, detect_threshold=union_detect, fillna_zero=True)
