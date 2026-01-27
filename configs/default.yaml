@@ -31,6 +31,7 @@ model:
   use_metric_learning: true
   metric_max_pairs: 2000
   metric_ridge_grid: [1.0, 2.5, 5.0]
+  tau_scale_k_nn: 5
 
   ood_shrink: true
   ood_shrink_inner: true
