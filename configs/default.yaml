@@ -29,7 +29,7 @@ model:
   y_latent_k_grid: [0, 10, 20]
 
   use_metric_learning: true
-  metric_max_pairs: 5000
+  metric_max_pairs: 2000
   metric_ridge_grid: [1.0, 2.5, 5.0]
 
   ood_shrink: true
