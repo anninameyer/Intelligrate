@@ -13,7 +13,7 @@ cv:
   informed_splits: false
 
 embed:
-  min_prev_x_abs: 14
+  min_prev_x_abs: 30
   pseudocount_x: 0.5
   n_components: 128
 
