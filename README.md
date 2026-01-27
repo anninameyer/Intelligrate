@@ -282,6 +282,8 @@ Training uses these parameter groups:
   - You may also sweep `outer_splits`, `seed`, `use_metric_learning`, `metric_max_pairs`,
     `tau_scale_k_nn`, `ood_shrink`, `ood_tau_inflate`, `ood_tau_gamma`, `informed_splits`.
   - **Tip:** keep sweeps to ~3–4 parameters at a time to avoid long runtimes.
+  - Notebook/API users can call `run_fixed_param_sweep_explicit(...)` with preloaded tables and
+    explicit config dicts (mirrors the fixed‑param OOF call style).
 
 **evaluate_paired_subset(truth_tpm, pred_tss, pseudocount, detect_threshold, prf_thresh, prf_weight, ...)**
 - `truth_tpm`: true KO table

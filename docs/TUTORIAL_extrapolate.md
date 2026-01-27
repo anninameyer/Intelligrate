@@ -126,6 +126,9 @@ python -m intelligrate.extrapolate.fixed_param_sweep --config configs/default.ya
 The output is a ranked table. Use the top row as your **fixed hyperparameter set** for
 `fixed_param_oof_knn_on_embedding` and `full_fit`.
 
+If you already have tables loaded (e.g., in a notebook), you can call
+`run_fixed_param_sweep_explicit(...)` with explicit inputs and config dicts.
+
 ## 2) Full fit (final model on all paired samples)
 This trains a **single deployable model** on all paired samples using fixed hyperparameters.
 

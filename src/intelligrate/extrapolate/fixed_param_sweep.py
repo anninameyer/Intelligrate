@@ -5,7 +5,6 @@ import time
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
 from .cv_knn import fixed_param_oof_knn_on_embedding
 from .embedding import fit_x_embedding_svd_clr
@@ -16,32 +15,34 @@ def _read_table(path: Path) -> pd.DataFrame:
     return pd.read_csv(path, sep="\t", index_col=0)
 
 
-def run_fixed_param_sweep(cfg: dict, *, out_path: Path) -> pd.DataFrame:
+def run_fixed_param_sweep_explicit(
+    *,
+    X_full: pd.DataFrame,
+    X: pd.DataFrame,
+    Y: pd.DataFrame,
+    ko_to_superclass: str | dict | None,
+    out_path: Path,
+    cv_cfg: dict,
+    embed_cfg: dict,
+    model_cfg: dict,
+    prf_cfg: dict,
+    metrics_cfg: dict,
+    sweep_cfg: dict,
+    embed: dict | None = None,
+) -> pd.DataFrame:
     """
-    Sweep fixed-parameter combos from cfg["fixed_param_sweep"].
+    Sweep fixed-parameter combos using explicit inputs (DataFrames + config dicts).
     Note: this does NOT use cfg["grid"]; any parameter not listed in fixed_param_sweep
-    falls back to a single default value from cfg["model"] / cfg["cv"].
+    falls back to a single default value from model/cv config.
     """
-    data_dir = Path(cfg.get("data_dir", "data"))
-    X_full = _read_table(data_dir / cfg["data"]["x_full"])
-    X = _read_table(data_dir / cfg["data"]["x"])
-    Y = _read_table(data_dir / cfg["data"]["y"])
-    ko_to_superclass = cfg["data"].get("ko_to_superclass")
-
-    cv_cfg = cfg.get("cv", {})
-    embed_cfg = cfg.get("embed", {})
-    model_cfg = cfg.get("model", {})
-    prf_cfg = cfg.get("prf", {})
-    metrics_cfg = cfg.get("metrics", {})
-    sweep_cfg = cfg.get("fixed_param_sweep", {})
-
-    embed = fit_x_embedding_svd_clr(
-        X_full,
-        min_prev_x_abs=int(embed_cfg.get("min_prev_x_abs", 2)),
-        pseudocount_x=float(embed_cfg.get("pseudocount_x", 0.5)),
-        n_components=int(embed_cfg.get("n_components", 128)),
-        seed=int(cv_cfg.get("seed", 0)),
-    )
+    if embed is None:
+        embed = fit_x_embedding_svd_clr(
+            X_full,
+            min_prev_x_abs=int(embed_cfg.get("min_prev_x_abs", 2)),
+            pseudocount_x=float(embed_cfg.get("pseudocount_x", 0.5)),
+            n_components=int(embed_cfg.get("n_components", 128)),
+            seed=int(cv_cfg.get("seed", 0)),
+        )
 
     grid_key_map = {
         "neigh_k": "neigh_k_grid",
@@ -102,76 +103,76 @@ def run_fixed_param_sweep(cfg: dict, *, out_path: Path) -> pd.DataFrame:
                                                                     for outer_splits in sweep_outer_splits:
                                                                         for seed in sweep_seed:
                                                                             for informed_splits in sweep_informed_splits:
-                    t0 = time.time()
-                    oof_clr, oof_tss, _ = fixed_param_oof_knn_on_embedding(
-                        X=X,
-                        Y_tpm=Y,
-                        embed=embed,
-                        ko_to_superclass=ko_to_superclass,
-                        outer_splits=int(outer_splits),
-                        seed=int(seed),
-                        min_prev_y_abs=int(min_prev_y_abs),
-                        y_detect_threshold=float(y_detect_threshold),
-                        pseudocount_y=float(pseudocount_y),
-                        neigh_k=int(neigh_k),
-                        tau_mult=float(tau_mult),
-                        lam=float(lam),
-                        y_latent_k=int(y_latent_k),
-                        use_metric_learning=bool(use_metric_learning),
-                        metric_max_pairs=int(metric_max_pairs),
-                        metric_ridge=float(metric_ridge),
-                        tau_scale_k_nn=int(tau_scale_k_nn),
-                        ood_shrink=bool(ood_shrink),
-                        ood_lam_base=float(ood_lam_base),
-                        ood_lam_cap=float(ood_lam_cap),
-                        ood_tau_inflate=bool(ood_tau_inflate),
-                        ood_tau_gamma=float(ood_tau_gamma),
-                        informed_splits=bool(informed_splits),
-                        informed_kmeans_on="X",
-                        prf_thresh=float(prf_cfg.get("prf_thresh", 1e-6)),
-                        prf_weight=str(prf_cfg.get("prf_weight", "binary")),
-                    )
-                    metrics = evaluate_paired_subset(
-                        truth_tpm=Y,
-                        pred_tss=oof_tss,
-                        pseudocount=float(pseudocount_y),
-                        detect_threshold=float(y_detect_threshold),
-                        prf_thresh=float(prf_cfg.get("prf_thresh", 1e-6)),
-                        prf_weight=str(prf_cfg.get("prf_weight", "binary")),
-                        compute_wclr=bool(metrics_cfg.get("compute_wclr", False)),
-                        compute_jsd=bool(metrics_cfg.get("compute_jsd", False)),
-                        compute_pathway=bool(metrics_cfg.get("compute_pathway_rmse", False)),
-                        compute_per_pathway=bool(metrics_cfg.get("pathway_rmse_per_group", False)),
-                        ko_to_group=ko_to_superclass,
-                        log1p_pathway=bool(metrics_cfg.get("pathway_rmse_log1p", True)),
-                    )
-                    rows.append(
-                        {
-                            "neigh_k": int(neigh_k),
-                            "tau_mult": float(tau_mult),
-                            "y_latent_k": int(y_latent_k),
-                            "metric_ridge": float(metric_ridge),
-                            "lam": float(lam),
-                            "min_prev_y_abs": int(min_prev_y_abs),
-                            "y_detect_threshold": float(y_detect_threshold),
-                            "pseudocount_y": float(pseudocount_y),
-                            "metric_max_pairs": int(metric_max_pairs),
-                            "tau_scale_k_nn": int(tau_scale_k_nn),
-                            "ood_shrink": bool(ood_shrink),
-                            "ood_lam_base": float(ood_lam_base),
-                            "ood_lam_cap": float(ood_lam_cap),
-                            "ood_tau_inflate": bool(ood_tau_inflate),
-                            "ood_tau_gamma": float(ood_tau_gamma),
-                            "use_metric_learning": bool(use_metric_learning),
-                            "outer_splits": int(outer_splits),
-                            "seed": int(seed),
-                            "informed_splits": bool(informed_splits),
-                            "dm_union": metrics.get("dm_union"),
-                            "dm_union_strict": metrics.get("dm_union_strict"),
-                            "dm_union_raw": metrics.get("dm_union_raw"),
-                            "runtime_s": time.time() - t0,
-                        }
-                    )
+                                                                                t0 = time.time()
+                                                                                oof_clr, oof_tss, _ = fixed_param_oof_knn_on_embedding(
+                                                                                    X=X,
+                                                                                    Y_tpm=Y,
+                                                                                    embed=embed,
+                                                                                    ko_to_superclass=ko_to_superclass,
+                                                                                    outer_splits=int(outer_splits),
+                                                                                    seed=int(seed),
+                                                                                    min_prev_y_abs=int(min_prev_y_abs),
+                                                                                    y_detect_threshold=float(y_detect_threshold),
+                                                                                    pseudocount_y=float(pseudocount_y),
+                                                                                    neigh_k=int(neigh_k),
+                                                                                    tau_mult=float(tau_mult),
+                                                                                    lam=float(lam),
+                                                                                    y_latent_k=int(y_latent_k),
+                                                                                    use_metric_learning=bool(use_metric_learning),
+                                                                                    metric_max_pairs=int(metric_max_pairs),
+                                                                                    metric_ridge=float(metric_ridge),
+                                                                                    tau_scale_k_nn=int(tau_scale_k_nn),
+                                                                                    ood_shrink=bool(ood_shrink),
+                                                                                    ood_lam_base=float(ood_lam_base),
+                                                                                    ood_lam_cap=float(ood_lam_cap),
+                                                                                    ood_tau_inflate=bool(ood_tau_inflate),
+                                                                                    ood_tau_gamma=float(ood_tau_gamma),
+                                                                                    informed_splits=bool(informed_splits),
+                                                                                    informed_kmeans_on="X",
+                                                                                    prf_thresh=float(prf_cfg.get("prf_thresh", 1e-6)),
+                                                                                    prf_weight=str(prf_cfg.get("prf_weight", "binary")),
+                                                                                )
+                                                                                metrics = evaluate_paired_subset(
+                                                                                    truth_tpm=Y,
+                                                                                    pred_tss=oof_tss,
+                                                                                    pseudocount=float(pseudocount_y),
+                                                                                    detect_threshold=float(y_detect_threshold),
+                                                                                    prf_thresh=float(prf_cfg.get("prf_thresh", 1e-6)),
+                                                                                    prf_weight=str(prf_cfg.get("prf_weight", "binary")),
+                                                                                    compute_wclr=bool(metrics_cfg.get("compute_wclr", False)),
+                                                                                    compute_jsd=bool(metrics_cfg.get("compute_jsd", False)),
+                                                                                    compute_pathway=bool(metrics_cfg.get("compute_pathway_rmse", False)),
+                                                                                    compute_per_pathway=bool(metrics_cfg.get("pathway_rmse_per_group", False)),
+                                                                                    ko_to_group=ko_to_superclass,
+                                                                                    log1p_pathway=bool(metrics_cfg.get("pathway_rmse_log1p", True)),
+                                                                                )
+                                                                                rows.append(
+                                                                                    {
+                                                                                        "neigh_k": int(neigh_k),
+                                                                                        "tau_mult": float(tau_mult),
+                                                                                        "y_latent_k": int(y_latent_k),
+                                                                                        "metric_ridge": float(metric_ridge),
+                                                                                        "lam": float(lam),
+                                                                                        "min_prev_y_abs": int(min_prev_y_abs),
+                                                                                        "y_detect_threshold": float(y_detect_threshold),
+                                                                                        "pseudocount_y": float(pseudocount_y),
+                                                                                        "metric_max_pairs": int(metric_max_pairs),
+                                                                                        "tau_scale_k_nn": int(tau_scale_k_nn),
+                                                                                        "ood_shrink": bool(ood_shrink),
+                                                                                        "ood_lam_base": float(ood_lam_base),
+                                                                                        "ood_lam_cap": float(ood_lam_cap),
+                                                                                        "ood_tau_inflate": bool(ood_tau_inflate),
+                                                                                        "ood_tau_gamma": float(ood_tau_gamma),
+                                                                                        "use_metric_learning": bool(use_metric_learning),
+                                                                                        "outer_splits": int(outer_splits),
+                                                                                        "seed": int(seed),
+                                                                                        "informed_splits": bool(informed_splits),
+                                                                                        "dm_union": metrics.get("dm_union"),
+                                                                                        "dm_union_strict": metrics.get("dm_union_strict"),
+                                                                                        "dm_union_raw": metrics.get("dm_union_raw"),
+                                                                                        "runtime_s": time.time() - t0,
+                                                                                    }
+                                                                                )
 
     df = pd.DataFrame(rows).sort_values("dm_union", ascending=False)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -179,7 +180,43 @@ def run_fixed_param_sweep(cfg: dict, *, out_path: Path) -> pd.DataFrame:
     return df
 
 
+def run_fixed_param_sweep(cfg: dict, *, out_path: Path) -> pd.DataFrame:
+    """
+    Sweep fixed-parameter combos from cfg["fixed_param_sweep"].
+    Note: this does NOT use cfg["grid"]; any parameter not listed in fixed_param_sweep
+    falls back to a single default value from cfg["model"] / cfg["cv"].
+    """
+    data_dir = Path(cfg.get("data_dir", "data"))
+    X_full = _read_table(data_dir / cfg["data"]["x_full"])
+    X = _read_table(data_dir / cfg["data"]["x"])
+    Y = _read_table(data_dir / cfg["data"]["y"])
+    ko_to_superclass = cfg["data"].get("ko_to_superclass")
+
+    cv_cfg = cfg.get("cv", {})
+    embed_cfg = cfg.get("embed", {})
+    model_cfg = cfg.get("model", {})
+    prf_cfg = cfg.get("prf", {})
+    metrics_cfg = cfg.get("metrics", {})
+    sweep_cfg = cfg.get("fixed_param_sweep", {})
+
+    return run_fixed_param_sweep_explicit(
+        X_full=X_full,
+        X=X,
+        Y=Y,
+        ko_to_superclass=ko_to_superclass,
+        out_path=out_path,
+        cv_cfg=cv_cfg,
+        embed_cfg=embed_cfg,
+        model_cfg=model_cfg,
+        prf_cfg=prf_cfg,
+        metrics_cfg=metrics_cfg,
+        sweep_cfg=sweep_cfg,
+        embed=None,
+    )
+
+
 def main() -> None:
+    import yaml
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=str, default="configs/default.yaml")
     ap.add_argument("--out", type=str, default="results/fixed_param_sweep.tsv")
