@@ -268,7 +268,7 @@ Training uses these parameter groups:
 - Set `outer_splits = len(X)` to approximate leave‑one‑out (slow).
 
 **fixed_param_sweep (run_fixed_param_sweep / CLI)**
-- Runs a grid of **fixed‑parameter** OOF evaluations and ranks by `dm_union`.
+- Runs a grid of **fixed‑parameter** OOF evaluations and ranks by `dm_union_strict` (no row‑dropping).
 - Use to find a single hyperparameter set that stays strong when fixed.
 - Add `fixed_param_sweep` to your config and run:
   - `python -m intelligrate.extrapolate.fixed_param_sweep --config configs/default.yaml`
@@ -291,5 +291,13 @@ Training uses these parameter groups:
 - `pseudocount`, `detect_threshold`: same logic as training
 - `prf_thresh`, `prf_weight`: precision/recall configuration
 - Optional: `compute_wclr`, `compute_jsd`, `compute_pathway`, `compute_per_pathway`
+
+**Metric set definitions (no row‑dropping)**
+- **union_raw**: KO‑union of truth and prediction, **no detect threshold** (threshold = 0), fill missing KOs with 0.
+- **union_strict**: KO‑union of truth and prediction, **with detect threshold**, fill missing KOs with 0.
+- **intersection**: KO‑intersection only (KOs present in both truth and prediction tables); still uses the same detect‑threshold behavior as intersection metrics.
+
+**Optional: pre‑filter Y before modeling**
+If you want to pre‑filter KO features once (e.g., apply a detection threshold globally and keep zeros as informative), do it **before** any training/sweeps and then use the filtered `Y` everywhere downstream. See the notebook section “Optional: Pre‑filter Y before any modeling” for a concrete example and the list of downstream calls that must use the updated `Y`.
 
 For full explanations and runnable examples, see the [Tutorials and notebooks](#tutorials-and-notebooks) above.

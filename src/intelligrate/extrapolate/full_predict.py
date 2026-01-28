@@ -110,33 +110,21 @@ def evaluate_paired_subset(
         "dm_union_strict": dm_spearman_union(
             truth_tpm, pred_tss, pseudocount=pseudocount, detect_threshold=detect_threshold, fillna_zero=True
         ),
-        "dm_union": dm_spearman_union(
-            truth_tpm, pred_tss, pseudocount=pseudocount, detect_threshold=detect_threshold, fillna_zero=False
-        ),
         "bray_union_raw": bray_spearman_union(truth_tpm, pred_tss, detect_threshold=0.0, fillna_zero=True),
-        "bray_union": bray_spearman_union(
+        "bray_union_strict": bray_spearman_union(
             truth_tpm, pred_tss, detect_threshold=detect_threshold, fillna_zero=True
-        ),
-        "bray_union_legacy": bray_spearman_union(
-            truth_tpm, pred_tss, detect_threshold=detect_threshold, fillna_zero=False
         ),
         "procrustes_aitchison_raw": procrustes_union_aitchison(
             truth_tpm, pred_tss, pseudocount=pseudocount, detect_threshold=0.0, fillna_zero=True
         ),
-        "procrustes_aitchison": procrustes_union_aitchison(
+        "procrustes_aitchison_strict": procrustes_union_aitchison(
             truth_tpm, pred_tss, pseudocount=pseudocount, detect_threshold=detect_threshold, fillna_zero=True
-        ),
-        "procrustes_aitchison_legacy": procrustes_union_aitchison(
-            truth_tpm, pred_tss, pseudocount=pseudocount, detect_threshold=detect_threshold, fillna_zero=False
         ),
         "procrustes_bray_raw": procrustes_union_bray(
             truth_tpm, pred_tss, detect_threshold=0.0, fillna_zero=True
         ),
-        "procrustes_bray": procrustes_union_bray(
+        "procrustes_bray_strict": procrustes_union_bray(
             truth_tpm, pred_tss, detect_threshold=detect_threshold, fillna_zero=True
-        ),
-        "procrustes_bray_legacy": procrustes_union_bray(
-            truth_tpm, pred_tss, detect_threshold=detect_threshold, fillna_zero=False
         ),
     }
 

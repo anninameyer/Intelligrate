@@ -167,14 +167,13 @@ def run_fixed_param_sweep_explicit(
                                                                                         "outer_splits": int(outer_splits),
                                                                                         "seed": int(seed),
                                                                                         "informed_splits": bool(informed_splits),
-                                                                                        "dm_union": metrics.get("dm_union"),
                                                                                         "dm_union_strict": metrics.get("dm_union_strict"),
                                                                                         "dm_union_raw": metrics.get("dm_union_raw"),
                                                                                         "runtime_s": time.time() - t0,
                                                                                     }
                                                                                 )
 
-    df = pd.DataFrame(rows).sort_values("dm_union", ascending=False)
+    df = pd.DataFrame(rows).sort_values("dm_union_strict", ascending=False)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_path, sep="\t", index=False)
     return df
@@ -232,7 +231,7 @@ def main() -> None:
             f"tau_mult={best['tau_mult']}",
             f"y_latent_k={best['y_latent_k']}",
             f"metric_ridge={best['metric_ridge']}",
-            f"dm_union={best['dm_union']}",
+            f"dm_union_strict={best['dm_union_strict']}",
         )
 
 

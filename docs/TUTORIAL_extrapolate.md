@@ -80,8 +80,13 @@ What you get in `results/`:
 
 Key numbers to interpret:
 - `OBJECTIVE_DM_SPEARMAN_MEAN`: average fold objective during nested CV
-- `model_dm_union`: KO‑union Aitchison DM Spearman for the model
-- `picrust2_dm_union`: KO‑union Aitchison DM Spearman for PICRUSt2 (if provided)
+- `model_dm_union_strict`: KO‑union Aitchison DM Spearman for the model (strict; no row‑dropping)
+- `picrust2_dm_union_strict`: KO‑union Aitchison DM Spearman for PICRUSt2 (if provided, strict)
+
+**Metric set definitions (no row‑dropping)**
+- **union_raw**: KO‑union of truth and prediction, **no detect threshold** (threshold = 0), fill missing KOs with 0.
+- **union_strict**: KO‑union of truth and prediction, **with detect threshold**, fill missing KOs with 0.
+- **intersection**: KO‑intersection only (KOs present in both truth and prediction tables); intersection metrics are computed on that shared KO set.
 
 ### Grid search (optional)
 Add a `grid:` section in your config to sweep parameters (cartesian product). Example:
@@ -100,7 +105,10 @@ The trainer runs all combinations and keeps the best `OBJECTIVE_DM_SPEARMAN_MEAN
 ## Optional: fixed-parameter sweep (stability-first)
 If you want a **single fixed hyperparameter set** that performs well in leakage‑free OOF (i.e., stable
 when parameters are fixed), run the fixed‑param sweep. This evaluates each combo using
-`fixed_param_oof_knn_on_embedding` and ranks by `dm_union`.
+`fixed_param_oof_knn_on_embedding` and ranks by `dm_union_strict`.
+
+**Optional: pre‑filter Y before modeling**
+If you want to pre‑filter KO features once (e.g., apply a detection threshold globally and keep zeros as informative), do it **before** any training/sweeps and then use the filtered `Y` everywhere downstream (training, fixed‑param sweep, evaluation, and PICRUSt2 comparisons). The notebook includes an “Optional: Pre‑filter Y before any modeling” cell showing where to plug this in.
 
 Add to your config:
 ```
@@ -207,7 +215,7 @@ If you want leakage‑free predictions **with fixed hyperparameters**, use the h
 
 ## PICRUSt2 comparison
 If `picrust2_kos.tsv` is provided in the config, `train` reports PICRUSt2 metrics and logs:
-- `picrust2_dm_union`, `model_dm_union`, `delta_union`
+- `picrust2_dm_union_strict`, `model_dm_union_strict`, `delta_union`
 
 Use these to compare against the baseline under identical scoring.
 
