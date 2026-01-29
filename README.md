@@ -300,4 +300,10 @@ Training uses these parameter groups:
 **Optional: pre‑filter Y before modeling**
 If you want to pre‑filter KO features once (e.g., apply a detection threshold globally and keep zeros as informative), do it **before** any training/sweeps and then use the filtered `Y` everywhere downstream. See the notebook section “Optional: Pre‑filter Y before any modeling” for a concrete example and the list of downstream calls that must use the updated `Y`.
 
+**Per‑KO confidence (OOF‑based, dataset‑stable)**
+Use `ko_confidence_from_oof(...)` to score each KO by predictability and local stability. It combines:
+- `conf_corr`: probability that OOF Spearman ≥ `r0` (Fisher‑z approximation with per‑KO n).
+- `conf_stab`: probability that local neighbor dispersion is lower than a random‑neighbor null.
+- `confidence = conf_corr * conf_stab` in [0, 1].
+
 For full explanations and runnable examples, see the [Tutorials and notebooks](#tutorials-and-notebooks) above.

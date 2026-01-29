@@ -88,6 +88,12 @@ Key numbers to interpret:
 - **union_strict**: KO‑union of truth and prediction, **with detect threshold**, fill missing KOs with 0.
 - **intersection**: KO‑intersection only (KOs present in both truth and prediction tables); intersection metrics are computed on that shared KO set.
 
+**Per‑KO confidence (OOF‑based, dataset‑stable)**
+Use `ko_confidence_from_oof(...)` to score each KO by predictability and local stability. It combines:
+- `conf_corr`: probability that OOF Spearman ≥ `r0` (Fisher‑z approximation with per‑KO n).
+- `conf_stab`: probability that local neighbor dispersion is lower than a random‑neighbor null.
+- `confidence = conf_corr * conf_stab` in [0, 1].
+
 ### Grid search (optional)
 Add a `grid:` section in your config to sweep parameters (cartesian product). Example:
 ```

@@ -16,8 +16,12 @@ from .metrics import (
     evaluate_intersection_metrics,
     procrustes_union_aitchison,
     procrustes_union_bray,
+    samplewise_spearman,
+    aitchison_dm,
+    corr_upper_triangle,
+    _pairwise_union_mats_tss,
 )
-from .transforms import clr_to_comp
+from .transforms import clr_to_comp, clr_rows
 from .embedding import transform_x_embedding_svd_clr
 
 
@@ -92,6 +96,10 @@ def evaluate_paired_subset(
     ko_to_group: dict | str | Path | None = None,
     log1p_pathway: bool = True,
     include_intersection: bool = True,
+    compute_null: bool = False,
+    null_n: int = 10,
+    null_seed: int = 0,
+    null_mean_noise_scale: float = 0.01,
 ) -> dict:
     if ko_to_group is not None and not isinstance(ko_to_group, dict):
         ko_path = Path(ko_to_group)
@@ -161,6 +169,96 @@ def evaluate_paired_subset(
             log1p_pathway=log1p_pathway,
         )
         metrics.update({f"intersection_{k}": v for k, v in inter.items()})
+
+    # Sample-wise Spearman correlations (union_strict, no row-dropping)
+    truth_tss_u, pred_tss_u = _pairwise_union_mats_tss(
+        truth_tpm, pred_tss, detect_threshold=detect_threshold, fillna_zero=True
+    )
+    truth_clr_u = clr_rows(truth_tss_u, pseudocount=pseudocount)
+    pred_clr_u = clr_rows(pred_tss_u, pseudocount=pseudocount)
+    good = truth_clr_u.notna().all(axis=1) & pred_clr_u.notna().all(axis=1)
+    truth_tss_u = truth_tss_u.loc[good]
+    pred_tss_u = pred_tss_u.loc[good]
+    truth_clr_u = truth_clr_u.loc[good]
+    pred_clr_u = pred_clr_u.loc[good]
+
+    if truth_tss_u.shape[0] > 0:
+        sample_tss = samplewise_spearman(truth_tss_u, pred_tss_u)
+        sample_clr = samplewise_spearman(truth_clr_u, pred_clr_u)
+        metrics["sample_spearman_tss_union_strict"] = float(sample_tss.mean())
+        metrics["sample_spearman_clr_union_strict"] = float(sample_clr.mean())
+
+    if compute_null and truth_tss_u.shape[0] > 0:
+        rng = np.random.default_rng(int(null_seed))
+        n = truth_tss_u.shape[0]
+        null_dm = []
+        null_sample_tss = []
+        null_sample_clr = []
+        null_feat_tss = []
+        null_feat_clr = []
+        null_mean_tss = []
+        null_mean_clr = []
+
+        truth_dm = aitchison_dm(truth_clr_u)
+
+        pred_tss_u_arr = pred_tss_u.to_numpy(float)
+        pred_clr_u_arr = pred_clr_u.to_numpy(float)
+
+        for _ in range(int(null_n)):
+            # Null 1: shuffle samples (break sample alignment)
+            perm = rng.permutation(n)
+            pred_tss_perm = pd.DataFrame(pred_tss_u_arr[perm, :], index=truth_tss_u.index, columns=truth_tss_u.columns)
+            pred_clr_perm = pd.DataFrame(pred_clr_u_arr[perm, :], index=truth_clr_u.index, columns=truth_clr_u.columns)
+
+            null_dm.append(
+                float(corr_upper_triangle(truth_dm, aitchison_dm(pred_clr_perm), method="spearman"))
+            )
+            null_sample_tss.append(float(samplewise_spearman(truth_tss_u, pred_tss_perm).mean()))
+            null_sample_clr.append(float(samplewise_spearman(truth_clr_u, pred_clr_perm).mean()))
+
+            # Null 2: shuffle features (break KO alignment)
+            perm_feat = rng.permutation(pred_tss_u_arr.shape[1])
+            pred_tss_feat = pd.DataFrame(
+                pred_tss_u_arr[:, perm_feat], index=truth_tss_u.index, columns=truth_tss_u.columns
+            )
+            pred_clr_feat = pd.DataFrame(
+                pred_clr_u_arr[:, perm_feat], index=truth_clr_u.index, columns=truth_clr_u.columns
+            )
+            null_feat_tss.append(float(samplewise_spearman(truth_tss_u, pred_tss_feat).mean()))
+            null_feat_clr.append(float(samplewise_spearman(truth_clr_u, pred_clr_feat).mean()))
+
+            # Null 3: mean profile + noise (global baseline)
+            mu_tss = truth_tss_u.mean(axis=0).to_numpy(float)
+            mu_clr = truth_clr_u.mean(axis=0).to_numpy(float)
+            noise_tss = rng.normal(0.0, float(null_mean_noise_scale), size=pred_tss_u_arr.shape)
+            noise_clr = rng.normal(0.0, float(null_mean_noise_scale), size=pred_clr_u_arr.shape)
+            pred_tss_mean = pd.DataFrame(
+                np.clip(mu_tss[None, :] + noise_tss, 0.0, None),
+                index=truth_tss_u.index,
+                columns=truth_tss_u.columns,
+            )
+            pred_clr_mean = pd.DataFrame(
+                mu_clr[None, :] + noise_clr,
+                index=truth_clr_u.index,
+                columns=truth_clr_u.columns,
+            )
+            null_mean_tss.append(float(samplewise_spearman(truth_tss_u, pred_tss_mean).mean()))
+            null_mean_clr.append(float(samplewise_spearman(truth_clr_u, pred_clr_mean).mean()))
+
+        metrics["null_sample_dm_union_strict_mean"] = float(np.nanmean(null_dm))
+        metrics["null_sample_dm_union_strict_std"] = float(np.nanstd(null_dm))
+        metrics["null_sample_spearman_tss_union_strict_mean"] = float(np.nanmean(null_sample_tss))
+        metrics["null_sample_spearman_tss_union_strict_std"] = float(np.nanstd(null_sample_tss))
+        metrics["null_sample_spearman_clr_union_strict_mean"] = float(np.nanmean(null_sample_clr))
+        metrics["null_sample_spearman_clr_union_strict_std"] = float(np.nanstd(null_sample_clr))
+        metrics["null_feature_spearman_tss_union_strict_mean"] = float(np.nanmean(null_feat_tss))
+        metrics["null_feature_spearman_tss_union_strict_std"] = float(np.nanstd(null_feat_tss))
+        metrics["null_feature_spearman_clr_union_strict_mean"] = float(np.nanmean(null_feat_clr))
+        metrics["null_feature_spearman_clr_union_strict_std"] = float(np.nanstd(null_feat_clr))
+        metrics["null_mean_spearman_tss_union_strict_mean"] = float(np.nanmean(null_mean_tss))
+        metrics["null_mean_spearman_tss_union_strict_std"] = float(np.nanstd(null_mean_tss))
+        metrics["null_mean_spearman_clr_union_strict_mean"] = float(np.nanmean(null_mean_clr))
+        metrics["null_mean_spearman_clr_union_strict_std"] = float(np.nanstd(null_mean_clr))
     return metrics
 
 

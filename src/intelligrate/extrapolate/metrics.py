@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist, pdist, squareform
 from scipy.spatial import procrustes
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, norm
 
 from .transforms import clr_rows
 from .knn_core import prf_thresholded
@@ -31,6 +31,29 @@ def corr_upper_triangle(A: np.ndarray, B: np.ndarray, method: str = "spearman") 
     if method == "pearson":
         return float(np.corrcoef(a[m], b[m])[0, 1])
     raise ValueError(method)
+
+
+def samplewise_spearman(
+    A: pd.DataFrame, B: pd.DataFrame, *, min_non_nan: int = 10
+) -> pd.Series:
+    """
+    Compute per-sample Spearman correlation across features.
+    A and B must be aligned on index/columns.
+    """
+    if not A.index.equals(B.index):
+        B = B.reindex(index=A.index)
+    if not A.columns.equals(B.columns):
+        B = B.reindex(columns=A.columns)
+
+    a = A.to_numpy(float)
+    b = B.to_numpy(float)
+    out = np.full(a.shape[0], np.nan, dtype=float)
+    for i in range(a.shape[0]):
+        m = np.isfinite(a[i]) & np.isfinite(b[i])
+        if m.sum() < min_non_nan:
+            continue
+        out[i] = float(spearmanr(a[i, m], b[i, m]).correlation)
+    return pd.Series(out, index=A.index, name="sample_spearman")
 
 
 def _cmdscale(D: np.ndarray, n_components: int) -> np.ndarray:
@@ -87,6 +110,152 @@ def jsd_rows(T: np.ndarray, P: np.ndarray, eps: float = 1e-12) -> float:
 
     jsd = 0.5 * kl(T, M) + 0.5 * kl(P, M)
     return float(np.mean(jsd))
+
+
+def featurewise_oof_spearman(
+    Y_true_clr: pd.DataFrame, Y_pred_clr: pd.DataFrame, *, min_n: int = 10
+) -> tuple[pd.Series, pd.Series]:
+    """
+    Per-feature Spearman between truth and predictions in CLR space.
+    Returns (rho, n_eff) as Series aligned to features.
+    """
+    if not Y_true_clr.index.equals(Y_pred_clr.index):
+        Y_pred_clr = Y_pred_clr.reindex(index=Y_true_clr.index)
+    if not Y_true_clr.columns.equals(Y_pred_clr.columns):
+        Y_pred_clr = Y_pred_clr.reindex(columns=Y_true_clr.columns)
+
+    rho = {}
+    n_eff = {}
+    for c in Y_true_clr.columns:
+        a = Y_true_clr[c].to_numpy(float)
+        b = Y_pred_clr[c].to_numpy(float)
+        m = np.isfinite(a) & np.isfinite(b)
+        n = int(m.sum())
+        n_eff[c] = n
+        if n < int(min_n):
+            rho[c] = np.nan
+        else:
+            rho[c] = float(spearmanr(a[m], b[m]).correlation)
+    return pd.Series(rho, name="oof_spearman"), pd.Series(n_eff, name="n_eff")
+
+
+def prob_r_ge_r0(
+    r: np.ndarray, n: np.ndarray, *, r0: float = 0.30, eps: float = 1e-12
+) -> np.ndarray:
+    """
+    Approximate P(r >= r0) using Fisher z. (Approximate for Spearman.)
+    r and n can be arrays.
+    """
+    r = np.asarray(r, float)
+    n = np.asarray(n, float)
+    out = np.full_like(r, np.nan, dtype=float)
+    m = np.isfinite(r) & np.isfinite(n) & (n >= 10)
+    if m.sum() == 0:
+        return out
+    r_clip = np.clip(r[m], -1 + 1e-6, 1 - 1e-6)
+    z = np.arctanh(r_clip)
+    z0 = np.arctanh(np.clip(float(r0), -1 + 1e-6, 1 - 1e-6))
+    se = 1.0 / np.sqrt(np.maximum(n[m] - 3.0, 1.0))
+    out[m] = 1.0 - norm.cdf((z0 - z) / (se + eps))
+    return out
+
+
+def knn_indices(Z: np.ndarray, *, k: int = 10, exclude_self: bool = True) -> np.ndarray:
+    Z = np.asarray(Z, float)
+    D = cdist(Z, Z, metric="euclidean")
+    if exclude_self:
+        np.fill_diagonal(D, np.inf)
+    return np.argsort(D, axis=1)[:, :k]
+
+
+def neighbor_var_per_feature(Yarr: np.ndarray, idx: np.ndarray) -> np.ndarray:
+    """
+    Yarr: (n, p), idx: (n, k) -> returns (p,) mean_i Var_{neighbors}(Y)
+    """
+    Yn = Yarr[idx]  # (n, k, p)
+    mean = Yn.mean(axis=1)
+    mean_sq = (Yn * Yn).mean(axis=1)
+    var = mean_sq - mean * mean
+    return var.mean(axis=0)
+
+
+def stability_confidence_from_null(
+    Y_clr: pd.DataFrame,
+    *,
+    Z: np.ndarray | None = None,
+    nn_idx: np.ndarray | None = None,
+    k_nn: int = 10,
+    R: int = 40,
+    seed: int = 0,
+    eps: float = 1e-12,
+) -> pd.Series:
+    """
+    Confidence in [0,1] where 1 means local dispersion is low vs null.
+    Uses log-variance of neighbor dispersion vs random-neighbor null.
+    """
+    if nn_idx is None:
+        if Z is None:
+            raise ValueError("Provide either Z or nn_idx.")
+        nn_idx = knn_indices(Z, k=int(k_nn), exclude_self=True)
+
+    rng = np.random.default_rng(int(seed))
+    Yarr = Y_clr.to_numpy(np.float32)
+    n, p = Yarr.shape
+    k = nn_idx.shape[1]
+
+    v_obs = neighbor_var_per_feature(Yarr, nn_idx)
+    lv_obs = np.log(v_obs + eps)
+
+    lv_null = np.empty((int(R), p), dtype=np.float32)
+    all_idx = np.arange(n)
+    for r in range(int(R)):
+        ridx = np.empty((n, k), dtype=np.int32)
+        for i in range(n):
+            choices = np.delete(all_idx, i)
+            ridx[i] = rng.choice(choices, size=k, replace=False)
+        v_r = neighbor_var_per_feature(Yarr, ridx)
+        lv_null[r] = np.log(v_r + eps)
+
+    mu = lv_null.mean(axis=0)
+    sd = lv_null.std(axis=0, ddof=1)
+    sd = np.maximum(sd, 1e-6)
+    z = (lv_obs - mu) / sd
+    conf_stab = norm.cdf(-z)
+    return pd.Series(conf_stab.astype(float), index=Y_clr.columns, name=f"conf_stab_k{k}")
+
+
+def ko_confidence_from_oof(
+    Y_true_clr: pd.DataFrame,
+    Y_pred_clr: pd.DataFrame,
+    *,
+    Z: np.ndarray,
+    r0: float = 0.30,
+    k_nn: int = 10,
+    R: int = 40,
+    seed: int = 0,
+    min_n: int = 10,
+    eps: float = 1e-12,
+) -> pd.DataFrame:
+    """
+    Combined KO confidence in [0,1] based on OOF Spearman and local stability.
+    Returns columns: oof_spearman, n_eff, conf_corr, conf_stab, confidence.
+    """
+    rho, n_eff = featurewise_oof_spearman(Y_true_clr, Y_pred_clr, min_n=int(min_n))
+    conf_corr = prob_r_ge_r0(rho.to_numpy(float), n_eff.to_numpy(float), r0=float(r0), eps=float(eps))
+    conf_corr = pd.Series(conf_corr, index=Y_true_clr.columns, name="conf_corr")
+    conf_stab = stability_confidence_from_null(
+        Y_true_clr, Z=Z, k_nn=int(k_nn), R=int(R), seed=int(seed), eps=float(eps)
+    )
+    S = pd.DataFrame(
+        {
+            "oof_spearman": rho,
+            "n_eff": n_eff,
+            "conf_corr": conf_corr,
+            "conf_stab": conf_stab,
+        }
+    )
+    S["confidence"] = S["conf_corr"] * S["conf_stab"]
+    return S
 
 
 def collapse_by_group(Y: pd.DataFrame, ko_to_group: dict) -> pd.DataFrame:
