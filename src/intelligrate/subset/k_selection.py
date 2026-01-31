@@ -97,19 +97,30 @@ def suggest_k(
 
         fig, axs = plt.subplots(3, 1, figsize=(8, 12))
         axs[0].plot(result["k_values"], result["silhouette"], marker="o", color="#345084FF")
-        axs[0].set_title("Silhouette Score")
-        axs[0].set_xlabel("k")
-        axs[0].set_ylabel("Silhouette Score")
+        axs[0].set_title("Silhouette Score", fontsize=16)
+        axs[0].set_xlabel("k", fontsize=14)
+        axs[0].set_ylabel("Silhouette Score", fontsize=14)
+        #also adjust the tick label size
+        axs[0].tick_params(axis='both', which='major', labelsize=14)
+        #despine the top and right spines
+        axs[0].spines['top'].set_visible(False)
+        axs[0].spines['right'].set_visible(False)
 
         axs[1].plot(result["k_values"], result["davies_bouldin"], marker="o", color="#345084FF")
-        axs[1].set_title("Davies-Bouldin Index")
-        axs[1].set_xlabel("k")
-        axs[1].set_ylabel("DB Index")
+        axs[1].set_title("Davies-Bouldin Index", fontsize=16)
+        axs[1].set_xlabel("k", fontsize=14)
+        axs[1].set_ylabel("DB Index", fontsize=14)
+        axs[1].tick_params(axis='both', which='major', labelsize=14)
+        axs[1].spines['top'].set_visible(False)
+        axs[1].spines['right'].set_visible(False)
 
         axs[2].errorbar(result["k_values"], result["gap"], yerr=result["gap_std"], marker="o", color="#345084FF")
-        axs[2].set_title("Gap Statistic")
-        axs[2].set_xlabel("k")
-        axs[2].set_ylabel("Gap Value")
+        axs[2].set_title("Gap Statistic", fontsize=16)
+        axs[2].set_xlabel("k", fontsize=14)
+        axs[2].set_ylabel("Gap Value", fontsize=14)
+        axs[2].tick_params(axis='both', which='major', labelsize=14)
+        axs[2].spines['top'].set_visible(False)
+        axs[2].spines['right'].set_visible(False)
         plt.tight_layout()
         result["figure"] = fig
 
