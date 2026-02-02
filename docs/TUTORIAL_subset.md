@@ -28,6 +28,18 @@ It does this using:
 3) k‑medoids clustering,
 4) a genetic algorithm (GA) to pick the final subset.
 
+**Parameter impact (quick guide)**
+- `metric` (distance): bray = abundance‑aware; jaccard = presence/absence. Choice affects diversity signal.
+- `k` (k‑medoids): higher k yields more clusters (finer stratification), but increases GA complexity.
+- `gap_B`: more bootstrap draws = more stable k diagnostics, slower runtime.
+- `population_size` / `generations`: larger values improve GA search but increase runtime.
+- `balance_vars`: more balancing categories increases fairness but can reduce diversity if too strict.
+- `coord_vars`: adds geographic spread to the objective.
+
+**Key formulas (intuition)**
+- Distance matrix `D` drives clustering and diversity scores.
+- GA objective combines diversity + balance penalties (higher is better).
+
 ---
 
 ## Inputs and outputs (at a glance)

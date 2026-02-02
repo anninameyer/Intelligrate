@@ -297,6 +297,16 @@ Training uses these parameter groups:
 - **union_strict**: KO‑union of truth and prediction, **with detect threshold**, fill missing KOs with 0.
 - **intersection**: KO‑intersection only (KOs present in both truth and prediction tables); still uses the same detect‑threshold behavior as intersection metrics.
 
+**Parameter impact (quick guide)**
+- `min_prev_x_abs`: raises/lowers marker feature prevalence filter. Higher = fewer features, faster, potentially smoother; too high can drop signal.
+- `n_components`: embedding dimension. Higher can capture more variation but increases noise/overfit risk.
+- `neigh_k`: kNN neighbors. Higher = smoother predictions; lower = more local but noisier.
+- `tau_mult`: kernel width. Higher = broader weighting; lower = sharper local weighting.
+- `y_latent_k`: target SVD dimension. Helps with very large KO tables; too high can add noise.
+- `y_detect_threshold`: zeros out low-abundance KOs in evaluation (union_strict). Higher = more sparsity, fewer low-abundance KOs.
+- `metric_max_pairs` / `metric_ridge`: metric learning stability; fewer pairs is faster but noisier.
+- `ood_shrink` / `ood_lam_*`: more shrink = safer on outliers, but can oversmooth.
+
 **Optional: pre‑filter Y before modeling**
 If you want to pre‑filter KO features once (e.g., apply a detection threshold globally and keep zeros as informative), do it **before** any training/sweeps and then use the filtered `Y` everywhere downstream. See the notebook section “Optional: Pre‑filter Y before any modeling” for a concrete example and the list of downstream calls that must use the updated `Y`.
 
@@ -305,5 +315,8 @@ Use `ko_confidence_from_oof(...)` to score each KO by predictability and local s
 - `conf_corr`: probability that OOF Spearman ≥ `r0` (Fisher‑z approximation with per‑KO n).
 - `conf_stab`: probability that local neighbor dispersion is lower than a random‑neighbor null.
 - `confidence = conf_corr * conf_stab` in [0, 1].
+
+**Validation notebooks**
+Additional notebook variants evaluate validation datasets (HMP, primates, Indian cohort, sourdough) in `docs/notebooks/`.
 
 For full explanations and runnable examples, see the [Tutorials and notebooks](#tutorials-and-notebooks) above.

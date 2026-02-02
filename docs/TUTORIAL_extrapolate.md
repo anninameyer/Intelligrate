@@ -88,11 +88,29 @@ Key numbers to interpret:
 - **union_strict**: KO‑union of truth and prediction, **with detect threshold**, fill missing KOs with 0.
 - **intersection**: KO‑intersection only (KOs present in both truth and prediction tables); intersection metrics are computed on that shared KO set.
 
+**Parameter impact (quick guide)**
+- `min_prev_x_abs`: higher → fewer marker features; faster, but risk dropping signal.
+- `n_components`: higher → richer embedding, but noisier/overfit risk.
+- `neigh_k`: higher → smoother predictions; lower → more local, noisier.
+- `tau_mult`: higher → broader kernel; lower → sharper local weighting.
+- `y_latent_k`: helps with large KO tables; too high can add noise.
+- `y_detect_threshold`: higher → more sparsity in union_strict evaluation.
+- `metric_max_pairs` / `metric_ridge`: stability vs speed of metric learning.
+- `ood_shrink` / `ood_lam_*`: more shrink → safer on outliers, but can oversmooth.
+
+**Key formulas**
+- CLR: `CLR(x) = log(x) - mean(log(x))`
+- kNN kernel weights: `w_i = exp(-d_i^2 / tau^2)`, normalized to sum to 1
+- KO confidence: `confidence = conf_corr * conf_stab`
+
 **Per‑KO confidence (OOF‑based, dataset‑stable)**
 Use `ko_confidence_from_oof(...)` to score each KO by predictability and local stability. It combines:
 - `conf_corr`: probability that OOF Spearman ≥ `r0` (Fisher‑z approximation with per‑KO n).
 - `conf_stab`: probability that local neighbor dispersion is lower than a random‑neighbor null.
 - `confidence = conf_corr * conf_stab` in [0, 1].
+
+**Validation notebooks**
+Additional notebook variants evaluate validation datasets (HMP, primates, Indian cohort, sourdough) in `docs/notebooks/`.
 
 ### Grid search (optional)
 Add a `grid:` section in your config to sweep parameters (cartesian product). Example:
