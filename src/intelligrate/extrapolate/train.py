@@ -202,7 +202,8 @@ def _run_once(cfg: dict, *, data_dir: Path, out_dir: Path) -> dict:
     X_full = _read_table(data_dir / cfg["data"]["x_full"])
     X = _read_table(data_dir / cfg["data"]["x"])
     Y = _read_table(data_dir / cfg["data"]["y"])
-    ko_to_super = _read_ko_to_superclass(data_dir / cfg["data"]["ko_to_superclass"])
+    ko_path = cfg["data"].get("ko_to_superclass")
+    ko_to_super = _read_ko_to_superclass(data_dir / ko_path) if ko_path else None
     picrust2_path = cfg["data"].get("picrust2")
     picrust2 = _read_table(data_dir / picrust2_path) if picrust2_path else None
 
@@ -273,6 +274,9 @@ def _run_once(cfg: dict, *, data_dir: Path, out_dir: Path) -> dict:
     compute_jsd = bool(metrics_cfg.get("compute_jsd", False))
     compute_pathway = bool(metrics_cfg.get("compute_pathway_rmse", False))
     compute_per_pathway = bool(metrics_cfg.get("pathway_rmse_per_group", False))
+    if ko_to_super is None:
+        compute_pathway = False
+        compute_per_pathway = False
     log1p_pathway = bool(metrics_cfg.get("pathway_rmse_log1p", True))
 
     model_prf = evaluate_union_metrics(

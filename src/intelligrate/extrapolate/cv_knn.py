@@ -38,7 +38,7 @@ def nested_cv_knn_metric_latent_on_embedding(
     Y_tpm: pd.DataFrame,
     embed: dict,
     *,
-    ko_to_superclass: dict,
+    ko_to_superclass: dict | None,
     outer_splits: int = 5,
     inner_splits: int = 3,
     seed: int = 0,
@@ -308,7 +308,7 @@ def nested_cv_knn_metric_latent_on_embedding(
                                         ko_to_group=ko_to_superclass,
                                         log1p=True,
                                     )
-                                    if need_pw
+                                    if need_pw and ko_to_superclass is not None
                                     else 0.0
                                 )
 
@@ -449,12 +449,15 @@ def nested_cv_knn_metric_latent_on_embedding(
         w_feat_outer = feature_weights_from_variance(Ytr_clr.loc[:, y_keep])
         wclr_mse_outer = weighted_clr_mse(Yte_clr_keep, Yhat_te_clr, w_feat_outer)
 
-        pw_rmse_outer = pathway_rmse_tss(
-            Y_true_tss=Yte_tss.loc[:, y_keep],
-            Y_pred_tss=Yhat_te_tss,
-            ko_to_group=ko_to_superclass,
-            log1p=True,
-        )
+        if ko_to_superclass is not None:
+            pw_rmse_outer = pathway_rmse_tss(
+                Y_true_tss=Yte_tss.loc[:, y_keep],
+                Y_pred_tss=Yhat_te_tss,
+                ko_to_group=ko_to_superclass,
+                log1p=True,
+            )
+        else:
+            pw_rmse_outer = float("nan")
 
         sp, sr, sf1 = prf_thresholded(
             Yte_tss.loc[:, y_keep].to_numpy(float),
@@ -508,7 +511,7 @@ def fixed_param_oof_knn_on_embedding(
     Y_tpm: pd.DataFrame,
     embed: dict,
     *,
-    ko_to_superclass: dict,
+    ko_to_superclass: dict | None,
     outer_splits: int = 5,
     seed: int = 0,
     min_prev_y_abs: int = 1,
