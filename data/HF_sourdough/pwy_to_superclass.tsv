@@ -1,0 +1,294 @@
+id	superclass
+map00220	Amino acid metabolism
+map00250	Amino acid metabolism
+map00260	Amino acid metabolism
+map00270	Amino acid metabolism
+map00280	Drug metabolism/xenobiotics
+map00290	Amino acid metabolism
+map00300	Amino acid metabolism
+map00310	Drug metabolism/xenobiotics
+map00330	Amino acid metabolism
+map00340	Amino acid metabolism
+map00350	Tryptophan metabolism
+map00360	Tryptophan metabolism
+map00410	Amino acid metabolism
+map00471	Amino acid metabolism
+map00473	Amino acid metabolism
+map00380	Tryptophan metabolism
+map00400	Tryptophan metabolism
+map00253	Antibiotic resistance/efflux
+map01055	Antibiotic resistance/efflux
+map01502	Antibiotic resistance/efflux
+map00010	Energy/central carbon
+map00030	Carbohydrate metabolism
+map00051	Carbohydrate metabolism
+map00052	Carbohydrate metabolism
+map00500	Carbohydrate metabolism
+map00510	Carbohydrate metabolism
+map00511	Drug metabolism/xenobiotics
+map00513	Carbohydrate metabolism
+map00514	Carbohydrate metabolism
+map00515	Carbohydrate metabolism
+map00540	Cell envelope/biogenesis
+map00550	Cell envelope/biogenesis
+map00053	Carbohydrate metabolism
+map00130	Cofactors/vitamins
+map00670	Cofactors/vitamins
+map00730	Cofactors/vitamins
+map00740	Cofactors/vitamins
+map00760	Cofactors/vitamins
+map00770	Cofactors/vitamins
+map00780	Cofactors/vitamins
+map00785	Cofactors/vitamins
+map00790	Cofactors/vitamins
+map00860	Cofactors/vitamins
+map03020	RNA processing/degradation
+map03030	DNA replication/repair/maintenance
+map03410	DNA replication/repair/maintenance
+map03430	DNA replication/repair/maintenance
+map03440	DNA replication/repair/maintenance
+map03420	DNA replication/repair/maintenance
+map00982	Drug metabolism/xenobiotics
+map00983	Drug metabolism/xenobiotics
+map01524	Antibiotic resistance/efflux
+map00020	Energy/central carbon
+map00620	SCFA fermentation
+map00630	Energy/central carbon
+map00061	Lipid metabolism
+map00071	Lipid metabolism
+map00120	Lipid metabolism
+map00121	Lipid metabolism
+map00561	Lipid metabolism
+map00565	Lipid metabolism
+map00600	Lipid metabolism
+map01212	Lipid metabolism
+map04979	Lipid metabolism
+map04071	Lipid metabolism
+map02030	Motility/adhesion
+map00230	Nucleotide metabolism
+map00240	Nucleotide metabolism
+map00520	Nucleotide metabolism
+map03018	RNA processing/degradation
+map00523	Secondary metabolism
+map00940	Secondary metabolism
+map00941	Secondary metabolism
+map01053	Secondary metabolism
+map01054	Secondary metabolism
+map01056	Secondary metabolism
+map01057	Secondary metabolism
+map01220	Drug metabolism/xenobiotics
+map02020	Signal transduction
+map03320	Signal transduction
+map04011	Signal transduction
+map04013	Signal transduction
+map04016	Signal transduction
+map04020	Signal transduction
+map04022	Signal transduction
+map04066	Signal transduction
+map04068	Signal transduction
+map04070	Signal transduction
+map04072	Signal transduction
+map04115	Signal transduction
+map04151	Signal transduction
+map04152	Signal transduction
+map04370	Signal transduction
+map04371	Signal transduction
+map04621	Signal transduction
+map04622	Signal transduction
+map04657	Signal transduction
+map04723	Synaptic pathways
+map04910	Signal transduction
+map04915	Signal transduction
+map04917	Signal transduction
+map04919	Signal transduction
+map04920	Signal transduction
+map04922	Signal transduction
+map04926	Signal transduction
+map04933	Signal transduction
+map05120	Signal transduction
+map05231	Synaptic pathways
+map03008	Translation/ribosome
+map03010	Translation/ribosome
+map05203	Viral processes
+map05416	Viral processes
+map00040	Carbohydrate metabolism
+map00072	Drug metabolism/xenobiotics
+map00100	Lipid metabolism
+map00140	Lipid metabolism
+map00190	Energy/central carbon
+map00195	Energy/central carbon
+map00261	Secondary metabolism
+map00281	Drug metabolism/xenobiotics
+map00311	Secondary metabolism
+map00332	Secondary metabolism
+map00333	Secondary metabolism
+map00361	Drug metabolism/xenobiotics
+map00362	Drug metabolism/xenobiotics
+map00364	Drug metabolism/xenobiotics
+map00365	Drug metabolism/xenobiotics
+map00401	Secondary metabolism
+map00404	Secondary metabolism
+map00405	Secondary metabolism
+map00430	Amino acid metabolism
+map00440	Amino acid metabolism
+map00450	Amino acid metabolism
+map00460	Amino acid metabolism
+map00472	Other
+map00480	Amino acid metabolism
+map00521	Secondary metabolism
+map00524	Secondary metabolism
+map00525	Secondary metabolism
+map00531	Energy/central carbon
+map00562	Carbohydrate metabolism
+map00564	Lipid metabolism
+map00590	Lipid metabolism
+map00591	Lipid metabolism
+map00592	Lipid metabolism
+map00603	Cell envelope/biogenesis
+map00604	Cell envelope/biogenesis
+map00621	Drug metabolism/xenobiotics
+map00622	Drug metabolism/xenobiotics
+map00623	Drug metabolism/xenobiotics
+map00625	Drug metabolism/xenobiotics
+map00626	Drug metabolism/xenobiotics
+map00627	Drug metabolism/xenobiotics
+map00633	Drug metabolism/xenobiotics
+map00640	SCFA fermentation
+map00642	Drug metabolism/xenobiotics
+map00643	Drug metabolism/xenobiotics
+map00650	SCFA fermentation
+map00660	Amino acid metabolism
+map00680	Energy/central carbon
+map00710	Energy/central carbon
+map00720	Energy/central carbon
+map00750	Cofactors/vitamins
+map00791	Drug metabolism/xenobiotics
+map00830	Cofactors/vitamins
+map00900	Lipid metabolism
+map00903	Drug metabolism/xenobiotics
+map00906	Lipid metabolism
+map00908	Secondary metabolism
+map00909	Secondary metabolism
+map00910	Energy/central carbon
+map00920	Energy/central carbon
+map00930	Drug metabolism/xenobiotics
+map00944	Secondary metabolism
+map00945	Secondary metabolism
+map00950	Secondary metabolism
+map00960	Secondary metabolism
+map00965	Secondary metabolism
+map00966	Secondary metabolism
+map00970	Translation/ribosome
+map00980	Drug metabolism/xenobiotics
+map00981	Lipid metabolism
+map01040	Lipid metabolism
+map01051	Secondary metabolism
+map01059	Secondary metabolism
+map01062	Lipid metabolism
+map01100	Energy/central carbon
+map01110	Secondary metabolism
+map01120	Energy/central carbon
+map01130	Secondary metabolism
+map01200	Energy/central carbon
+map01210	Energy/central carbon
+map01230	Amino acid metabolism
+map01501	Antibiotic resistance/efflux
+map01503	Antibiotic resistance/efflux
+map01523	Antibiotic resistance/efflux
+map02010	Transport
+map02024	Signal transduction
+map02025	Motility/adhesion
+map02026	Motility/adhesion
+map02040	Motility/adhesion
+map02060	Transport
+map03013	Transport
+map03060	Transport
+map03070	Transport
+map03450	DNA replication/repair/maintenance
+map04080	Signal transduction
+map04112	Cell envelope/biogenesis
+map04113	Cell envelope/biogenesis
+map04122	DNA replication/repair/maintenance
+map04138	Transport
+map04141	Translation/ribosome
+map04142	Transport
+map04146	Transport
+map04210	Cell envelope/biogenesis
+map04211	Other
+map04212	Other
+map04213	Other
+map04214	Other
+map04215	Cell envelope/biogenesis
+map04216	Other
+map04217	Other
+map04260	Other
+map04510	Motility/adhesion
+map04512	Signal transduction
+map04611	Other
+map04612	Other
+map04614	Other
+map04626	Defense systems
+map04659	Other
+map04666	Other
+map04714	Energy/central carbon
+map04724	Signal transduction
+map04725	Synaptic pathways
+map04726	Synaptic pathways
+map04727	Synaptic pathways
+map04728	Synaptic pathways
+map04914	Signal transduction
+map04918	Other
+map04930	Other
+map04931	Other
+map04932	Other
+map04934	Other
+map04940	Other
+map04964	Other
+map04973	Carbohydrate metabolism
+map04974	Amino acid metabolism
+map04976	Energy/central carbon
+map04978	Cofactors/vitamins
+map05010	Other
+map05012	Other
+map05014	Other
+map05016	Other
+map05020	Other
+map05030	Other
+map05031	Other
+map05034	Other
+map05100	Defense systems
+map05110	Defense systems
+map05111	Motility/adhesion
+map05132	Defense systems
+map05133	Other
+map05134	Defense systems
+map05142	Other
+map05143	Other
+map05145	Other
+map05146	Defense systems
+map05150	Defense systems
+map05152	Defense systems
+map05161	Viral processes
+map05164	Viral processes
+map05165	Viral processes
+map05166	Viral processes
+map05167	Viral processes
+map05168	Viral processes
+map05200	Other
+map05204	Other
+map05205	Other
+map05206	Other
+map05210	Other
+map05211	Other
+map05215	Other
+map05219	Other
+map05222	Other
+map05225	Other
+map05226	Other
+map05230	Energy/central carbon
+map05340	Other
+map05418	Other
+map04912	Signal transduction
+map04144	Transport
+map04014	Signal transduction
+map04024	Signal transduction
