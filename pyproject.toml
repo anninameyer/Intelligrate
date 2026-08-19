@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "tomli; python_version < '3.11'"]
 kmedoids = ["scikit-learn-extra"]
 maps = ["geopandas", "contextily"]
 

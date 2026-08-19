@@ -69,7 +69,8 @@ def test_console_script_names_include_workflow_namespace():
 def test_optional_dependencies_cover_maps_and_dev_tools():
     optional = _read_pyproject()["project"]["optional-dependencies"]
 
-    assert optional["dev"] == ["pytest"]
+    assert "pytest" in optional["dev"]
+    assert "tomli; python_version < '3.11'" in optional["dev"]
     assert optional["kmedoids"] == ["scikit-learn-extra"]
     assert optional["maps"] == ["geopandas", "contextily"]
 
