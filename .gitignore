@@ -1,30 +1,23 @@
-cat >> .gitignore <<'EOF'
-
 # Python virtual environments
 .venv/
 venv/
 ENV/
 env/
 
-# Python cache
+# Python cache and test cache
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+.pytest_cache/
 
-# OS files
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+
+# OS/editor files
 .DS_Store
 .Rhistory
-
-# Results (optional: keep if you want to version results)
-results/*.tsv
-results/*.csv
-results/*.json
-EOF
-.venv/
-
 
 # Results: keep folder, ignore contents
 results/**
 !results/.gitkeep
-*.egg-info/
-
