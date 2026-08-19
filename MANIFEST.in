@@ -2,6 +2,7 @@ exclude .DS_Store
 recursive-exclude data *
 recursive-exclude docs *
 recursive-exclude results *
+recursive-exclude tests *
 recursive-exclude .github *
 recursive-exclude .agents *
 recursive-exclude .codex *
