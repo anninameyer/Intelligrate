@@ -34,7 +34,8 @@ def test_pyproject_release_metadata_is_complete():
     assert project["name"] == "intelligrate"
     assert re.fullmatch(r"\d+\.\d+\.\d+(?:\.dev\d+)?", project["version"])
     assert project["description"] == (
-        "Modules for diversity-aware sample subsetting and extrapolating insights back to complete datasets."
+        "Diversity-aware sample subsetting and kNN-based extrapolation from one data matrix/layer "
+        "to another across complete datasets."
     )
     assert project["readme"] == "README.md"
     assert project["requires-python"] == ">=3.10,<3.13"

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "intelligrate"
 version = "0.1.1.dev0"
-description = "Modules for diversity-aware sample subsetting and extrapolating insights back to complete datasets."
+description = "Diversity-aware sample subsetting and kNN-based extrapolation from one data matrix/layer to another across complete datasets."
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
 license = "BSD-3-Clause"
