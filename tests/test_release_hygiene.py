@@ -32,6 +32,7 @@ def test_pyproject_release_metadata_is_complete():
     project = _read_pyproject()["project"]
 
     assert project["name"] == "intelligrate"
+    assert re.fullmatch(r"\d+\.\d+\.\d+(?:\.dev\d+)?", project["version"])
     assert project["description"] == (
         "Modules for diversity-aware sample subsetting and extrapolating insights back to complete datasets."
     )

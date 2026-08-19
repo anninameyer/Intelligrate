@@ -34,6 +34,7 @@ Learn a mapping from a *starting layer* (e.g., amplicon marker gene k-mers) to a
 - [Input formats](#input-formats)
 - [Outputs](#outputs)
 - [Parameter guide](#parameter-guide)
+- [Release notes](#release-notes)
 
 ---
 
@@ -41,14 +42,24 @@ Learn a mapping from a *starting layer* (e.g., amplicon marker gene k-mers) to a
 
 Install the Python package when you want to use `intelligrate` on your own data:
 
-### From a GitHub tag
+### From PyPI
 ```bash
-pip install "intelligrate @ git+https://github.com/ORG/REPO.git@vX.Y.Z"
+pip install intelligrate
 ```
 
 Optional map dependencies for geographic plots in the subset notebooks:
 ```bash
-pip install "intelligrate[maps] @ git+https://github.com/ORG/REPO.git@vX.Y.Z"
+pip install "intelligrate[maps]"
+```
+
+### From a GitHub tag
+```bash
+pip install "intelligrate @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.0"
+```
+
+Optional map dependencies for geographic plots in the subset notebooks:
+```bash
+pip install "intelligrate[maps] @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.0"
 ```
 
 The PyPI/package install contains the library code, not the example datasets or notebooks.
@@ -56,7 +67,7 @@ Clone the GitHub repository if you want to run the tutorials with the bundled ex
 ```bash
 git clone https://github.com/anninameyer/Intelligrate.git
 cd Intelligrate
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ## Quickstart: subset
@@ -112,6 +123,7 @@ that performs best in leakage‑free OOF (see tutorial).
 
 ```
 python - <<'PY'
+from pathlib import Path
 import joblib
 import pandas as pd
 from intelligrate.extrapolate.embedding import fit_x_embedding_svd_clr
@@ -379,3 +391,7 @@ Use `ko_confidence_from_oof(...)` to score each KO by predictability and local s
 Additional notebook variants evaluate validation datasets (HMP, primates, Indian cohort, sourdough) in `docs/notebooks/`.
 
 For full explanations and runnable examples, see the [Tutorials and notebooks](#tutorials-and-notebooks) above.
+
+## Release notes
+
+- [v0.1.0](docs/releases/v0.1.0.md): first public PyPI release.
