@@ -1,6 +1,6 @@
 mode: ga
 cluster_table: results/subset/kmedoids_clusters.tsv
-metadata_table: data/metadata.tsv
+metadata_table: data/HF_sourdough/metadata.tsv
 output_dir: results/subset
 
 total_samples: 30

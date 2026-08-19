@@ -1,5 +1,5 @@
 mode: distance
-feature_table: data/feature_table_rel.tsv
+feature_table: data/HF_sourdough/feature_table_rel.tsv
 metric: bray
 assume_relative: true
 output_dir: results/subset

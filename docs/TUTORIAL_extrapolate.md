@@ -3,7 +3,7 @@
 See also:
 - `../README.md` (project overview + quickstart)
 - `TUTORIAL_subset.md` (sample subsetting workflow)
-- `notebooks/02_extrapolate_train_evaluate_full_fit_predict.ipynb` (hands‑on run)
+- `notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough.ipynb` (hands-on sourdough run)
 
 This tutorial explains **what extrapolate does**, the **inputs and outputs**, and how to run:
 - `train` (nested CV, hyperparameter selection, OOF predictions)
@@ -11,7 +11,10 @@ This tutorial explains **what extrapolate does**, the **inputs and outputs**, an
 - `full_predict` (KOs for kmer‑only samples)
 
 If you prefer a hands‑on run, see the notebook:
-- `notebooks/02_extrapolate_train_evaluate_full_fit_predict.ipynb`
+- `notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough.ipynb`
+
+Additional dataset-specific notebooks are available for HMP, Indian cohort, and primates in
+`docs/notebooks/`.
 
 ---
 
@@ -31,12 +34,20 @@ It also reports OOD diagnostics (nearest‑neighbor distances to the training se
 
 ## Inputs and outputs
 
+Example datasets live in subfolders under `data/`. Choose one dataset folder first, then use the
+files inside it. For example, the sourdough example uses `data/HF_sourdough/`; other example
+folders include `data/hmp/`, `data/indian/`, and `data/primates/`.
+
 **Inputs (TSV)**
-- `X_kmers.tsv` — paired samples, k‑mer features (rows = samples, columns = k‑mers)
-- `X_kmers_full.tsv` — all samples (paired + unpaired), same k‑mers
-- `Y_kos.tsv` — paired KO profiles (TPM or counts)
-- `ko_to_superclass.tsv` — KO -> pathway/superclass mapping
-- Optional: `picrust2_kos.tsv` — PICRUSt2 KO predictions for paired samples
+- `data/HF_sourdough/X_kmers.tsv` — paired samples, k‑mer features (rows = samples, columns = k‑mers)
+- `data/HF_sourdough/X_kmers_full.tsv` — all samples (paired + unpaired), same k‑mers
+- `data/HF_sourdough/Y_kos.tsv` — paired KO profiles (TPM or counts)
+- `data/HF_sourdough/ko_to_superclass.tsv` — KO -> pathway/superclass mapping
+- Optional: `data/HF_sourdough/picrust2_kos.tsv` — PICRUSt2 KO predictions for paired samples
+
+Some example datasets use ASV feature table names instead of k‑mer names, for example
+`data/hmp/X_ASVs.tsv` and `data/hmp/X_ASVs_full.tsv`. The required structure is the same:
+paired `X`, full `X`, paired target `Y`, and optional baseline/mapping files.
 
 **Outputs (in `results/`)**
 - `oof_clr.tsv`, `oof_tss.tsv` — leakage‑free OOF predictions from nested CV
@@ -72,6 +83,10 @@ make score
 # or
 python -m intelligrate.extrapolate.train --config configs/default.yaml
 ```
+
+For config-driven runs, paths in the `data:` section are interpreted relative to `data/`.
+Use dataset-relative paths such as `HF_sourdough/X_kmers.tsv`,
+`hmp/X_ASVs.tsv`, `indian/X_ASVs.tsv`, or `primates/X_ASVs.tsv`.
 
 What you get in `results/`:
 - `oof_clr.tsv`, `oof_tss.tsv`
@@ -171,7 +186,7 @@ import joblib
 import pandas as pd
 from intelligrate.extrapolate.embedding import fit_x_embedding_svd_clr
 
-X_full = pd.read_csv('data/X_kmers_full.tsv', sep='\t', index_col=0)
+X_full = pd.read_csv('data/HF_sourdough/X_kmers_full.tsv', sep='\t', index_col=0)
 embed = fit_x_embedding_svd_clr(
     X_full,
     min_prev_x_abs=14,
@@ -186,8 +201,8 @@ PY
 ### Step B — Fit the full model
 ```
 python -m intelligrate.extrapolate.full_fit \
-  --x data/X_kmers.tsv \
-  --y data/Y_kos.tsv \
+  --x data/HF_sourdough/X_kmers.tsv \
+  --y data/HF_sourdough/Y_kos.tsv \
   --embed-path results/embed.joblib \
   --model-out results/model.joblib \
   --neigh-k 12 \
@@ -209,7 +224,7 @@ Predict KOs for any k‑mer table (paired or unpaired):
 ```
 python -m intelligrate.extrapolate.full_predict \
   --model results/model.joblib \
-  --x data/X_kmers_full.tsv \
+  --x data/HF_sourdough/X_kmers_full.tsv \
   --out-prefix results/pred
 ```
 Outputs:
@@ -222,8 +237,8 @@ If you also pass `--y-truth`, the same metrics as in `train` are computed:
 ```
 python -m intelligrate.extrapolate.full_predict \
   --model results/model.joblib \
-  --x data/X_kmers.tsv \
-  --y-truth data/Y_kos.tsv \
+  --x data/HF_sourdough/X_kmers.tsv \
+  --y-truth data/HF_sourdough/Y_kos.tsv \
   --out-prefix results/pred_paired
 ```
 This writes `results/pred_paired.metrics.tsv`.

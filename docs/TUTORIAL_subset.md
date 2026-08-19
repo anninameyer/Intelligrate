@@ -44,9 +44,12 @@ It does this using:
 
 ## Inputs and outputs (at a glance)
 
+Example datasets live in subfolders under `data/`. Choose one dataset folder first, then use the
+files inside it. The subset example uses `data/HF_sourdough/`.
+
 **Inputs (TSV)**
-- `feature_table_rel.tsv` — samples x features (relative abundance preferred)
-- `metadata.tsv` — sample metadata (categories + optional lat/long)
+- `data/HF_sourdough/feature_table_rel.tsv` — samples x features (relative abundance preferred)
+- `data/HF_sourdough/metadata.tsv` — sample metadata (categories + optional lat/long)
 
 **Outputs (in `results/subset/` by default)**
 - `distance.tsv` + `distance_meta.json`
@@ -65,6 +68,11 @@ pip install intelligrate
 pip install -e .
 ```
 
+Optional geographic map plots in the subset notebooks require extra geospatial dependencies:
+```
+pip install "intelligrate[maps]"
+```
+
 ---
 
 ## Python API (recommended)
@@ -75,7 +83,7 @@ This is the clearest way to run the workflow end‑to‑end.
 import pandas as pd
 from intelligrate.subset import compute_distance_matrix
 
-ft = pd.read_csv('data/feature_table_rel.tsv', sep='\t', index_col=0)
+ft = pd.read_csv('data/HF_sourdough/feature_table_rel.tsv', sep='\t', index_col=0)
 D = compute_distance_matrix(ft, metric='bray', assume_relative=True)
 ```
 
@@ -98,7 +106,7 @@ km = fit_kmedoids(D, k=3, random_state=42)
 ```
 from intelligrate.subset import ga_subset
 
-md = pd.read_csv('data/metadata.tsv', sep='\t', index_col=0)
+md = pd.read_csv('data/HF_sourdough/metadata.tsv', sep='\t', index_col=0)
 selected, best_scores, fitness = ga_subset(
     km['cluster_df'],
     md,
@@ -120,7 +128,7 @@ These configs live in `configs/` and write to `results/subset/`.
 Config (`configs/subset_distance.yaml`):
 ```
 mode: distance
-feature_table: data/feature_table_rel.tsv
+feature_table: data/HF_sourdough/feature_table_rel.tsv
 metric: bray
 assume_relative: true
 output_dir: results/subset
@@ -137,7 +145,7 @@ Outputs:
 Config (`configs/subset_k.yaml`):
 ```
 mode: suggest_k
-feature_table: data/feature_table_rel.tsv
+feature_table: data/HF_sourdough/feature_table_rel.tsv
 distance_matrix: results/subset/distance.tsv
 k_min: 2
 k_max: 4
@@ -177,7 +185,7 @@ Config (`configs/subset_ga.yaml`):
 ```
 mode: ga
 cluster_table: results/subset/kmedoids_clusters.tsv
-metadata_table: data/metadata.tsv
+metadata_table: data/HF_sourdough/metadata.tsv
 output_dir: results/subset
 
 total_samples: 30
@@ -267,6 +275,7 @@ Outputs:
 - `suggest_k` provides diagnostics; YOU choose k based on those curves.
 - Start with small GA settings (small `population_size` and `generations`) to test quickly, increasing those makes results more stable, but runs slower.
 - If your feature table is not relative abundance, set `assume_relative: false` (or normalize first).
+- Geographic basemap plots in the subset notebooks are optional. Install `geopandas` and `contextily` with `pip install "intelligrate[maps]"` if you want to run those cells.
 
 See also:
 - `../README.md`

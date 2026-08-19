@@ -1,5 +1,5 @@
 mode: suggest_k
-feature_table: data/feature_table_rel.tsv
+feature_table: data/HF_sourdough/feature_table_rel.tsv
 distance_matrix: results/subset/distance.tsv
 k_min: 2
 k_max: 4

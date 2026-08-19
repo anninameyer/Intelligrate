@@ -1,11 +1,38 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "intelligrate"
 version = "0.1.0"
+description = "Modules for diversity-aware sample subsetting and extrapolating insights back to complete datasets."
+readme = "README.md"
 requires-python = ">=3.10"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Annina Meyer" },
+]
+keywords = [
+  "microbiome",
+  "metagenomics",
+  "multi-omics",
+  "inference",
+  "sample-selection",
+  "subsetting",
+  "functional-profiling",
+  "bioinformatics",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 dependencies = [
   "numpy",
   "pandas",
@@ -20,6 +47,23 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest"]
 kmedoids = ["scikit-learn-extra"]
+maps = ["geopandas", "contextily"]
+
+[project.scripts]
+intelligrate-extrapolate-train = "intelligrate.extrapolate.train:main"
+intelligrate-extrapolate-full-fit = "intelligrate.extrapolate.full_fit:main"
+intelligrate-extrapolate-full-predict = "intelligrate.extrapolate.full_predict:main"
+intelligrate-extrapolate-fixed-param-sweep = "intelligrate.extrapolate.fixed_param_sweep:main"
+intelligrate-subset = "intelligrate.subset.cli:main"
+
+[project.urls]
+Repository = "https://github.com/anninameyer/Intelligrate"
+Documentation = "https://github.com/anninameyer/Intelligrate#readme"
+Issues = "https://github.com/anninameyer/Intelligrate/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

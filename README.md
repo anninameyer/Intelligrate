@@ -39,9 +39,24 @@ Learn a mapping from a *starting layer* (e.g., amplicon marker gene k-mers) to a
 
 ## Install
 
+Install the Python package when you want to use `intelligrate` on your own data:
+
 ### From a GitHub tag
 ```bash
 pip install "intelligrate @ git+https://github.com/ORG/REPO.git@vX.Y.Z"
+```
+
+Optional map dependencies for geographic plots in the subset notebooks:
+```bash
+pip install "intelligrate[maps] @ git+https://github.com/ORG/REPO.git@vX.Y.Z"
+```
+
+The PyPI/package install contains the library code, not the example datasets or notebooks.
+Clone the GitHub repository if you want to run the tutorials with the bundled example data:
+```bash
+git clone https://github.com/anninameyer/Intelligrate.git
+cd Intelligrate
+pip install -e .
 ```
 
 ## Quickstart: subset
@@ -51,11 +66,16 @@ Full runnable example in the provided [Tutorials and notebooks](#tutorials-and-n
 
 ```
 python - <<'PY'
+from pathlib import Path
 import pandas as pd
 from intelligrate.subset import compute_distance_matrix, suggest_k, fit_kmedoids, ga_subset
 
-ft = pd.read_csv("data/feature_table_rel.tsv", sep="\t", index_col=0)  # samples x features
-md = pd.read_csv("data/metadata.tsv", sep="\t", index_col=0)           # samples x metadata
+dataset_dir = Path("data/HF_sourdough")
+results_dir = Path("results/HF_sourdough/subset")
+results_dir.mkdir(parents=True, exist_ok=True)
+
+ft = pd.read_csv(dataset_dir / "feature_table_rel.tsv", sep="\t", index_col=0)  # samples x features
+md = pd.read_csv(dataset_dir / "metadata.tsv", sep="\t", index_col=0)           # samples x metadata
 
 # 1) distances
 D = compute_distance_matrix(ft, metric="bray", assume_relative=True)
@@ -77,7 +97,7 @@ selected, best_scores, fitness = ga_subset(
     random_state=42,
 )
 
-selected.to_csv("results/subset/ga_selected_samples.tsv", sep="\t")
+selected.to_csv(results_dir / "ga_selected_samples.tsv", sep="\t")
 PY
 
 ```
@@ -101,9 +121,13 @@ from intelligrate.extrapolate.full_predict import predict_final_model
 # X_full: all samples with amplicon k-mers
 # X: paired subset (same feature space), matched to Y rows
 # Y: KO profiles (TPM/TSS) for paired subset
-X_full = pd.read_csv("data/X_kmers_full.tsv", sep="\t", index_col=0)
-X      = pd.read_csv("data/X_kmers.tsv",      sep="\t", index_col=0)
-Y      = pd.read_csv("data/Y_kos.tsv",        sep="\t", index_col=0)
+dataset_dir = Path("data/HF_sourdough")
+results_dir = Path("results/HF_sourdough")
+results_dir.mkdir(parents=True, exist_ok=True)
+
+X_full = pd.read_csv(dataset_dir / "X_kmers_full.tsv", sep="\t", index_col=0)
+X      = pd.read_csv(dataset_dir / "X_kmers.tsv",      sep="\t", index_col=0)
+Y      = pd.read_csv(dataset_dir / "Y_kos.tsv",        sep="\t", index_col=0)
 
 # 1) fit reusable X embedding on the full X feature space
 embed = fit_x_embedding_svd_clr(
@@ -113,7 +137,7 @@ embed = fit_x_embedding_svd_clr(
     n_components=128,
     seed=0,
 )
-joblib.dump(embed, "results/embed.joblib")
+joblib.dump(embed, results_dir / "embed.joblib")
 
 # 2) fit final model on paired subset
 model = fit_final_model(
@@ -136,23 +160,41 @@ model = fit_final_model(
     ood_lam_cap=0.5,
     seed=0,
 )
-save_model(model, "results/model.joblib")
+save_model(model, results_dir / "model.joblib")
 
 # 3) predict for all samples in X_full
 Yhat_clr, Yhat_tss, diag = predict_final_model(X_full, model)
-Yhat_tss.to_csv("results/pred_full.tss.tsv", sep="\t")
+Yhat_tss.to_csv(results_dir / "pred_full.tss.tsv", sep="\t")
 PY
 
 ```
 
 ## Tutorials and notebooks
 Tutorials:
-- `docs/TUTORIAL_subset.md`
-- `docs/TUTORIAL_extrapolate.md`
+- [Subset tutorial](docs/TUTORIAL_subset.md)
+- [Extrapolate tutorial](docs/TUTORIAL_extrapolate.md)
 
-Example notebooks (runnable end-to-end on `data/`):
-- `docs/notebooks/01_subset_kmedoids_ga_selection.ipynb`
-- `docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict.ipynb`
+Example notebooks are stored in `docs/notebooks/`. Each notebook uses one of the example dataset
+folders under `data/` and writes its outputs to a matching folder under `results/`.
+
+Subset notebooks:
+- [Subset with k-medoids + GA selection](docs/notebooks/01_subset_kmedoids_ga_selection.ipynb) using `data/HF_sourdough/`
+- [Subset with k-medoids + GA selection, 100 samples](docs/notebooks/01_subset_kmedoids_ga_selection_100_samples.ipynb) using `data/HF_sourdough/`
+
+The geographic map section in the subset notebooks is optional and requires `geopandas` and
+`contextily`. Install with `pip install "intelligrate[maps]"` if you want those map plots.
+
+Extrapolate notebooks:
+- [HF sourdough KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough.ipynb) using `data/HF_sourdough/`
+- [HF sourdough KO extrapolation with custom PICRUSt2 database](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough_custom_picrust2_db.ipynb) using `data/HF_sourdough/`
+- [HF sourdough pathway extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough_pwys.ipynb) using `data/HF_sourdough/`
+- [HMP KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_hmp.ipynb) using `data/hmp/`
+- [HMP oral KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_hmp_oral.ipynb) using `data/hmp/`
+- [HMP stool KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_hmp_stool.ipynb) using `data/hmp/`
+- [Indian cohort KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_indian.ipynb) using `data/indian/`
+- [Indian cohort EC extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_indian_ecs.ipynb) using `data/indian/`
+- [Primates KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_primates.ipynb) using `data/primates/`
+- [Primates EC extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_primates_ecs.ipynb) using `data/primates/`
 
 ## Input table formats
 All inputs are TSV with:
@@ -160,14 +202,31 @@ All inputs are TSV with:
 - columns = features
 - first column = sample IDs (index)
 
-Example files in `data/`:
-- `feature_table_rel.tsv`, `metadata.tsv` (subset workflow)
-- `X_kmers.tsv`, `X_kmers_full.tsv` (extrapolate inputs (k-mer features))
-- `Y_kos.tsv` (KO profiles for paired samples)
-- `picrust2_kos.tsv` (optional baseline for comparison of KO predictions)
+Example datasets live in subfolders under `data/`. Choose one dataset folder first, then use the files inside it.
+
+Current example dataset folders:
+- `data/HF_sourdough/`
+- `data/hmp/`
+- `data/indian/`
+- `data/primates/`
+
+Common files inside a dataset folder:
+- `feature_table_rel.tsv`, `metadata.tsv` for the subset workflow, when available.
+- `X_kmers.tsv` or `X_ASVs.tsv` for paired input features.
+- `X_kmers_full.tsv` or `X_ASVs_full.tsv` for all samples to extrapolate over.
+- `Y_kos.tsv` for paired KO profiles.
+- `Y_ecs.tsv` or `Y_pwys.tsv` for alternative target layers, when available.
+- `picrust2_kos.tsv` or `picrust2_ecs.tsv` for optional PICRUSt2 baseline comparison.
+- `ko_to_superclass.tsv` or `pwy_to_superclass.tsv` for optional pathway/superclass summaries.
+
+For example, the sourdough extrapolation tutorial uses:
+- `data/HF_sourdough/X_kmers.tsv`
+- `data/HF_sourdough/X_kmers_full.tsv`
+- `data/HF_sourdough/Y_kos.tsv`
+- `data/HF_sourdough/picrust2_kos.tsv`
 
 ## Outputs
-All outputs go to `results/` by default.
+Outputs are written to `results/` by default. The notebooks use dataset-specific folders such as `results/HF_sourdough/`, `results/hmp/`, `results/indian/`, and `results/primates/` so outputs from different examples do not overwrite each other.
 
 Subset outputs (in `results/subset/`):
 - `distance.tsv`, `distance_meta.json`
