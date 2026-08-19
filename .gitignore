@@ -4,6 +4,8 @@ venv/
 ENV/
 env/
 .tmp-wheel-test*/
+.tmp-testpypi-install/
+.tmp-pypi-install/
 
 # Python cache and test cache
 __pycache__/
