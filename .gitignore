@@ -3,6 +3,7 @@
 venv/
 ENV/
 env/
+.tmp-wheel-test*/
 
 # Python cache and test cache
 __pycache__/

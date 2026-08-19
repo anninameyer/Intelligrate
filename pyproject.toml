@@ -7,7 +7,7 @@ name = "intelligrate"
 version = "0.1.0"
 description = "Modules for diversity-aware sample subsetting and extrapolating insights back to complete datasets."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 authors = [
@@ -50,11 +50,11 @@ kmedoids = ["scikit-learn-extra"]
 maps = ["geopandas", "contextily"]
 
 [project.scripts]
-intelligrate-extrapolate-train = "intelligrate.extrapolate.train:main"
-intelligrate-extrapolate-full-fit = "intelligrate.extrapolate.full_fit:main"
-intelligrate-extrapolate-full-predict = "intelligrate.extrapolate.full_predict:main"
-intelligrate-extrapolate-fixed-param-sweep = "intelligrate.extrapolate.fixed_param_sweep:main"
-intelligrate-subset = "intelligrate.subset.cli:main"
+intelligrate-extrapolate-train = "intelligrate._cli:extrapolate_train"
+intelligrate-extrapolate-full-fit = "intelligrate._cli:extrapolate_full_fit"
+intelligrate-extrapolate-full-predict = "intelligrate._cli:extrapolate_full_predict"
+intelligrate-extrapolate-fixed-param-sweep = "intelligrate._cli:extrapolate_fixed_param_sweep"
+intelligrate-subset = "intelligrate._cli:subset"
 
 [project.urls]
 Repository = "https://github.com/anninameyer/Intelligrate"

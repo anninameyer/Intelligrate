@@ -36,6 +36,7 @@ def test_pyproject_release_metadata_is_complete():
         "Modules for diversity-aware sample subsetting and extrapolating insights back to complete datasets."
     )
     assert project["readme"] == "README.md"
+    assert project["requires-python"] == ">=3.10,<3.13"
     assert project["license"] == "BSD-3-Clause"
     assert project["license-files"] == ["LICENSE"]
     assert project["authors"] == [{"name": "Annina Meyer"}]
@@ -58,11 +59,11 @@ def test_console_script_names_include_workflow_namespace():
     scripts = _read_pyproject()["project"]["scripts"]
 
     assert scripts == {
-        "intelligrate-extrapolate-train": "intelligrate.extrapolate.train:main",
-        "intelligrate-extrapolate-full-fit": "intelligrate.extrapolate.full_fit:main",
-        "intelligrate-extrapolate-full-predict": "intelligrate.extrapolate.full_predict:main",
-        "intelligrate-extrapolate-fixed-param-sweep": "intelligrate.extrapolate.fixed_param_sweep:main",
-        "intelligrate-subset": "intelligrate.subset.cli:main",
+        "intelligrate-extrapolate-train": "intelligrate._cli:extrapolate_train",
+        "intelligrate-extrapolate-full-fit": "intelligrate._cli:extrapolate_full_fit",
+        "intelligrate-extrapolate-full-predict": "intelligrate._cli:extrapolate_full_predict",
+        "intelligrate-extrapolate-fixed-param-sweep": "intelligrate._cli:extrapolate_fixed_param_sweep",
+        "intelligrate-subset": "intelligrate._cli:subset",
     }
 
 
