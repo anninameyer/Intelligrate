@@ -489,17 +489,15 @@ def _run_once(cfg: dict, *, data_dir: Path, out_dir: Path) -> dict:
     }
 
 
-def main():
-    import yaml
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--config", type=str, default="configs/default.yaml")
-    args = ap.parse_args()
-
-    cfg = yaml.safe_load(Path(args.config).read_text())
-
-    repo_root = Path(".").resolve()
-    data_dir = repo_root / "data"
-    out_dir = repo_root / "results"
+def run_training_config(
+    cfg: dict,
+    *,
+    data_dir: str | Path = "data",
+    out_dir: str | Path = "results",
+) -> dict:
+    """Run nested-CV training from a config dictionary and write standard outputs."""
+    data_dir = Path(data_dir)
+    out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     grid_runs = _iter_grid_configs(cfg)
@@ -555,6 +553,21 @@ def main():
         full_fit_prf["pathway_rmse_per_group"].to_csv(out_dir / "pathway_rmse_full_fit.tsv", sep="\t", header=True)
     if picrust2_prf and isinstance(picrust2_prf.get("pathway_rmse_per_group"), pd.Series):
         picrust2_prf["pathway_rmse_per_group"].to_csv(out_dir / "pathway_rmse_picrust2.tsv", sep="\t", header=True)
+
+    return best_payload
+
+
+def main():
+    import yaml
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--config", type=str, default="configs/default.yaml")
+    args = ap.parse_args()
+
+    cfg = yaml.safe_load(Path(args.config).read_text())
+
+    repo_root = Path(".").resolve()
+    best_payload = run_training_config(cfg, data_dir=repo_root / "data", out_dir=repo_root / "results")
+    run = best_payload["run"]
 
     print(f"OBJECTIVE_DM_SPEARMAN_MEAN={run['objective_dm_spearman_mean']:.6f}")
     print(f"OOF_DM_SPEARMAN={float(run['oof_dm_spearman']):.6f}")

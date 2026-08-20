@@ -424,7 +424,11 @@ Key steps are: embed X, train with nested CV, fit a final model, predict for all
 - `n_components`: SVD embedding size
 - `seed`: random seed
 
-**nested CV training (via train._run_once or train.main)**
+**run_training_config(cfg, data_dir, out_dir)**
+Runs nested CV training from a config dictionary, writes OOF predictions and summary files, and
+returns the same outputs as Python objects. See the [extrapolate tutorial](docs/TUTORIAL_extrapolate.md)
+for separate API and CLI examples.
+
 Training uses these parameter groups:
 - **CV**: `outer_splits`, `inner_splits`, `seed`, `informed_splits`
 - **Model**:

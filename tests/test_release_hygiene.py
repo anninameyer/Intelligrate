@@ -82,6 +82,26 @@ def test_core_dependencies_cover_notebook_plotting_helpers():
     assert "statsmodels" in dependencies
 
 
+def test_extrapolate_public_api_exports_documented_workflow_functions():
+    from intelligrate.extrapolate import (
+        evaluate_paired_subset,
+        fit_final_model,
+        fit_x_embedding_svd_clr,
+        predict_final_model,
+        run_fixed_param_sweep_explicit,
+        run_training_config,
+        save_model,
+    )
+
+    assert callable(evaluate_paired_subset)
+    assert callable(fit_final_model)
+    assert callable(fit_x_embedding_svd_clr)
+    assert callable(predict_final_model)
+    assert callable(run_fixed_param_sweep_explicit)
+    assert callable(run_training_config)
+    assert callable(save_model)
+
+
 def test_package_discovery_exposes_only_intelligrate_namespaces():
     packages = _discover_src_packages()
 
