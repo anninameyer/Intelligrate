@@ -59,7 +59,13 @@ jobs:
 
       - name: Check installed CLI entry points
         run: |
-          intelligrate-extrapolate-train --help
-          intelligrate-extrapolate-full-fit --help
-          intelligrate-extrapolate-full-predict --help
-          intelligrate-subset --help
+          intelligrate --help
+          intelligrate subset --help
+          intelligrate subset write-configs --help
+          intelligrate subset distance --help
+          intelligrate subset ga --help
+          intelligrate extrapolate --help
+          intelligrate extrapolate write-config --help
+          intelligrate extrapolate train --help
+          intelligrate extrapolate full-fit --help
+          intelligrate extrapolate full-predict --help
