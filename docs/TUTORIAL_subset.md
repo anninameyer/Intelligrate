@@ -106,6 +106,15 @@ If you already have a suitable Python environment active, install directly into 
 pip install intelligrate
 ```
 
+Verify the install:
+```
+python -c "import intelligrate; print('intelligrate import OK')"
+intelligrate-subset --help
+```
+
+There is currently no top-level `intelligrate --help` command; use the workflow-specific commands
+above.
+
 To run this notebook from the same environment, also install a notebook interface:
 ```
 pip install notebook ipykernel

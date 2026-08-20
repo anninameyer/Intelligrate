@@ -75,6 +75,23 @@ If you already have a suitable Python environment active, install directly into 
 pip install intelligrate
 ```
 
+### Verify the install
+Check that Python can import the package:
+```bash
+python -c "import intelligrate; print('intelligrate import OK')"
+```
+
+Check that the workflow-specific command line tools are available:
+```bash
+intelligrate-subset --help
+intelligrate-extrapolate-train --help
+intelligrate-extrapolate-full-fit --help
+intelligrate-extrapolate-full-predict --help
+```
+
+There is currently no top-level `intelligrate --help` command; use the workflow-specific commands
+above.
+
 Optional map dependencies for geographic plots in the subset notebooks:
 ```bash
 pip install "intelligrate[maps]"
