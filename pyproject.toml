@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "intelligrate"
-version = "0.1.1.dev0"
+version = "0.1.1"
 description = "Diversity-aware sample subsetting and kNN-based extrapolation from one data matrix/layer to another across complete datasets."
 readme = "README.md"
 requires-python = ">=3.10,<3.13"

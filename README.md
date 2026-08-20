@@ -106,12 +106,12 @@ pip install notebook ipykernel
 
 ### From a GitHub tag
 ```bash
-pip install "intelligrate @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.0"
+pip install "intelligrate @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.1"
 ```
 
 Optional map dependencies for geographic plots in the subset notebooks:
 ```bash
-pip install "intelligrate[maps] @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.0"
+pip install "intelligrate[maps] @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.1"
 ```
 
 The PyPI/package install contains the library code. Example notebooks, configs, and example data
@@ -501,4 +501,5 @@ For full explanations and runnable examples, see the [Tutorials and notebooks](#
 
 ## Release notes
 
+- [v0.1.1](docs/releases/v0.1.1.md): pip-first notebooks, cross-platform install docs, and hierarchical CLI.
 - [v0.1.0](docs/releases/v0.1.0.md): first public PyPI release.

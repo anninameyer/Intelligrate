@@ -4,6 +4,7 @@ venv/
 ENV/
 env/
 .tmp-wheel-test*/
+.tmp-wheel-install*/
 .tmp-testpypi-install/
 .tmp-pypi-install/
 

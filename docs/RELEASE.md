@@ -36,8 +36,8 @@ python -m twine check dist/*
 Expected artifacts:
 
 ```text
-dist/intelligrate-0.1.0.tar.gz
-dist/intelligrate-0.1.0-py3-none-any.whl
+dist/intelligrate-<version>.tar.gz
+dist/intelligrate-<version>-py3-none-any.whl
 ```
 
 The version in the filenames changes when `project.version` changes.
@@ -69,18 +69,18 @@ python -m venv .tmp-testpypi-install
 .tmp-testpypi-install/bin/python -m pip install \
   --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple/ \
-  intelligrate
+  intelligrate==0.1.1
 ```
 
 Verify imports and installed commands:
 
 ```bash
 .tmp-testpypi-install/bin/python -c "import intelligrate; print(intelligrate.__file__)"
-.tmp-testpypi-install/bin/intelligrate-extrapolate-train --help
-.tmp-testpypi-install/bin/intelligrate-extrapolate-full-fit --help
-.tmp-testpypi-install/bin/intelligrate-extrapolate-full-predict --help
-.tmp-testpypi-install/bin/intelligrate-extrapolate-fixed-param-sweep --help
-.tmp-testpypi-install/bin/intelligrate-subset --help
+.tmp-testpypi-install/bin/intelligrate --help
+.tmp-testpypi-install/bin/intelligrate subset distance --help
+.tmp-testpypi-install/bin/intelligrate subset ga --help
+.tmp-testpypi-install/bin/intelligrate extrapolate train --help
+.tmp-testpypi-install/bin/intelligrate extrapolate full-predict --help
 ```
 
 ## Tag the release
@@ -88,8 +88,8 @@ Verify imports and installed commands:
 After TestPyPI succeeds, create and push a matching Git tag:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 Use the version from `pyproject.toml`.
@@ -123,8 +123,9 @@ Verify:
 
 ```bash
 .tmp-pypi-install/bin/python -c "import intelligrate; print(intelligrate.__file__)"
-.tmp-pypi-install/bin/intelligrate-extrapolate-train --help
-.tmp-pypi-install/bin/intelligrate-subset --help
+.tmp-pypi-install/bin/intelligrate --help
+.tmp-pypi-install/bin/intelligrate subset --help
+.tmp-pypi-install/bin/intelligrate extrapolate --help
 ```
 
 ## Next release
