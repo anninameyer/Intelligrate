@@ -132,7 +132,7 @@ intelligrate subset run-config --config configs/subset_distance.yaml
 
 To run this notebook from the same environment, also install a notebook interface:
 ```
-pip install notebook ipykernel
+pip install "intelligrate[notebooks]"
 ```
 
 For development only, clone the repository and install editable:

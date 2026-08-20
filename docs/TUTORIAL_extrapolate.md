@@ -114,6 +114,7 @@ Verify the install:
 python -c "import intelligrate; print('intelligrate import OK')"
 intelligrate --help
 intelligrate extrapolate --help
+intelligrate extrapolate write-config --help
 intelligrate extrapolate full-predict --help
 ```
 
@@ -122,7 +123,7 @@ do not type bracketed usage text such as `[-h]` literally.
 
 To run this notebook from the same environment, also install a notebook interface:
 ```
-pip install notebook ipykernel
+pip install "intelligrate[notebooks]"
 ```
 
 For development only, clone the repository and install editable:
@@ -150,6 +151,10 @@ If you installed `intelligrate` with pip and did not clone the repository, use
 `intelligrate extrapolate write-config --out configs/default.yaml` to write an editable config
 template into your working folder. Then edit the paths under `data:` so they point to the example
 data folder you downloaded from GitHub or to your own tables.
+
+PICRUSt2 prediction files and KO/pathway-to-superclass mapping files are optional. They are used
+only for baseline comparison metrics and pathway/superclass visual summaries; model training,
+full-fit, and full-predict do not require them.
 
 What you get in `results/`:
 - `oof_clr.tsv`, `oof_tss.tsv`

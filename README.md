@@ -102,17 +102,17 @@ conda/mamba and install `geopandas` and `contextily` from conda-forge.
 
 To run the example notebooks from the same environment, also install a notebook interface there:
 ```bash
-pip install notebook ipykernel
+pip install "intelligrate[notebooks]"
 ```
 
 ### From a GitHub tag
 ```bash
-pip install "intelligrate @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.2"
+pip install "intelligrate @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.3"
 ```
 
 Optional map dependencies for geographic plots in the subset notebooks:
 ```bash
-pip install "intelligrate[maps] @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.2"
+pip install "intelligrate[maps] @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.3"
 ```
 
 The PyPI/package install contains the library code. Example notebooks, configs, and example data
@@ -131,8 +131,8 @@ your_working_folder/
     X_kmers.tsv
     X_kmers_full.tsv
     Y_kos.tsv
-    picrust2_kos.tsv
-    ko_to_superclass.tsv
+    picrust2_kos.tsv          # optional baseline comparison
+    ko_to_superclass.tsv      # optional pathway/superclass summaries
   results/                         # created by notebooks/scripts
 ```
 
@@ -178,6 +178,9 @@ For config-driven CLI runs, start by writing editable config templates from the 
 Edit the input paths and parameters in the YAML files, then run the corresponding command. The
 example templates assume the same `data/...`, `configs/...`, and `results/...` layout used in this
 repository.
+
+The config template commands are available for both workflows that support YAML config runs:
+`intelligrate extrapolate write-config` and `intelligrate subset write-configs`.
 
 The same functionality is available through the Python API in the quickstarts below and in the
 example notebooks. If you are running a notebook-only example after `pip install intelligrate`, you
@@ -350,7 +353,7 @@ For example, the sourdough extrapolation tutorial uses:
 - `data/HF_sourdough/X_kmers.tsv`
 - `data/HF_sourdough/X_kmers_full.tsv`
 - `data/HF_sourdough/Y_kos.tsv`
-- `data/HF_sourdough/picrust2_kos.tsv`
+- Optional: `data/HF_sourdough/picrust2_kos.tsv` and `data/HF_sourdough/ko_to_superclass.tsv`
 
 ## Outputs
 Outputs are written to `results/` by default. The notebooks use dataset-specific folders such as `results/HF_sourdough/`, `results/hmp/`, `results/indian/`, and `results/primates/` so outputs from different examples do not overwrite each other.
@@ -509,6 +512,7 @@ For full explanations and runnable examples, see the [Tutorials and notebooks](#
 
 ## Release notes
 
+- [v0.1.3](docs/releases/v0.1.3.md): notebook compatibility and optional PICRUSt2/pathway inputs.
 - [v0.1.2](docs/releases/v0.1.2.md): adds installed config templates and CLI template writers.
 - [v0.1.1](docs/releases/v0.1.1.md): pip-first notebooks, cross-platform install docs, and hierarchical CLI.
 - [v0.1.0](docs/releases/v0.1.0.md): first public PyPI release.

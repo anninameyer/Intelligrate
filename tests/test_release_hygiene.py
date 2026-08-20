@@ -72,6 +72,14 @@ def test_optional_dependencies_cover_maps_and_dev_tools():
     assert "tomli; python_version < '3.11'" in optional["dev"]
     assert optional["kmedoids"] == ["scikit-learn-extra"]
     assert optional["maps"] == ["geopandas", "contextily"]
+    assert optional["notebooks"] == ["notebook", "ipykernel"]
+
+
+def test_core_dependencies_cover_notebook_plotting_helpers():
+    dependencies = set(_read_pyproject()["project"]["dependencies"])
+
+    assert "seaborn" in dependencies
+    assert "statsmodels" in dependencies
 
 
 def test_package_discovery_exposes_only_intelligrate_namespaces():

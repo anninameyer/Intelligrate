@@ -28,7 +28,7 @@ Use API tokens for upload. Do not commit tokens, `.pypirc` files, or passwords.
 Set the version for this release, then build source and wheel distributions:
 
 ```bash
-VERSION=0.1.2
+VERSION=0.1.3
 python -m build
 python -m twine check dist/intelligrate-${VERSION}*
 ```
@@ -69,7 +69,7 @@ python -m venv .tmp-testpypi-install
 .tmp-testpypi-install/bin/python -m pip install \
   --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple/ \
-  intelligrate==0.1.2
+  intelligrate==0.1.3
 ```
 
 Verify imports and installed commands:
@@ -90,8 +90,8 @@ Verify imports and installed commands:
 After TestPyPI succeeds, create and push a matching Git tag:
 
 ```bash
-git tag v0.1.2
-git push origin v0.1.2
+git tag v0.1.3
+git push origin v0.1.3
 ```
 
 Use the version from `pyproject.toml`.
