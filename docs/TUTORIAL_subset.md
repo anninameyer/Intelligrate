@@ -111,7 +111,10 @@ Verify the install:
 python -c "import intelligrate; print('intelligrate import OK')"
 intelligrate --help
 intelligrate subset --help
-intelligrate subset run --help
+intelligrate subset distance --help
+intelligrate subset suggest-k --help
+intelligrate subset kmedoids --help
+intelligrate subset ga --help
 ```
 
 The help output uses placeholders such as `PATH`, `TSV`, or `JOBLIB` to describe values you provide;
@@ -183,41 +186,34 @@ selected, best_scores, fitness = ga_subset(
 ---
 
 ## CLI workflow (same steps)
-These configs live in `configs/` and write to `results/subset/`.
+The CLI exposes the same four workflow steps as explicit subcommands. Each command below writes to
+`results/subset/`.
 
 ### Step 1 — Distance matrix
-Config (`configs/subset_distance.yaml`):
-```
-mode: distance
-feature_table: data/HF_sourdough/feature_table_rel.tsv
-metric: bray
-assume_relative: true
-output_dir: results/subset
-```
 Run:
 ```
-python -m intelligrate.subset.cli --config configs/subset_distance.yaml
+intelligrate subset distance \
+  --feature-table data/HF_sourdough/feature_table_rel.tsv \
+  --metric bray \
+  --assume-relative \
+  --output-dir results/subset
 ```
 Outputs:
 - `results/subset/distance.tsv`
 - `results/subset/distance_meta.json`
 
 ### Step 2 — Suggest k
-Config (`configs/subset_k.yaml`):
-```
-mode: suggest_k
-feature_table: data/HF_sourdough/feature_table_rel.tsv
-distance_matrix: results/subset/distance.tsv
-k_min: 2
-k_max: 4
-gap_B: 2
-seed: 42
-plot: true
-output_dir: results/subset
-```
 Run:
 ```
-python -m intelligrate.subset.cli --config configs/subset_k.yaml
+intelligrate subset suggest-k \
+  --feature-table data/HF_sourdough/feature_table_rel.tsv \
+  --distance-matrix results/subset/distance.tsv \
+  --k-min 2 \
+  --k-max 4 \
+  --gap-B 2 \
+  --seed 42 \
+  --plot \
+  --output-dir results/subset
 ```
 Outputs:
 - `results/subset/k_diagnostics.tsv`
@@ -225,60 +221,41 @@ Outputs:
 - `results/subset/k_suggest_meta.json`
 
 ### Step 3 — Fit k‑medoids
-Config (`configs/subset_kmedoids.yaml`):
-```
-mode: kmedoids
-distance_matrix: results/subset/distance.tsv
-k: 3
-seed: 42
-output_dir: results/subset
-```
 Run:
 ```
-python -m intelligrate.subset.cli --config configs/subset_kmedoids.yaml
+intelligrate subset kmedoids \
+  --distance-matrix results/subset/distance.tsv \
+  --k 3 \
+  --seed 42 \
+  --output-dir results/subset
 ```
 Outputs:
 - `results/subset/kmedoids_clusters.tsv`
 - `results/subset/kmedoids_cluster_counts.tsv`
 
 ### Step 4 — GA subset selection
-Config (`configs/subset_ga.yaml`):
-```
-mode: ga
-cluster_table: results/subset/kmedoids_clusters.tsv
-metadata_table: data/HF_sourdough/metadata.tsv
-output_dir: results/subset
-
-total_samples: 30
-
-balance_vars:
-  - r_samp_country
-  - r_samp_source
-
-metadata_weights:
-  r_samp_country: 1.0
-  r_samp_source: 0.5
-
-coord_vars: [latitude, longitude]
-
-population_size: 10
-generations: 3
-seed: 42
-
-min_category_n: 2
-min_per_category: 2
-
-grid_weight: 3.0
-distance_weight: 2.0
-balance_weight: 1.0
-balance_scale: 1000.0
-hard_penalty_weight: 100.0
-
-fixed_include: configs/fixed_include.tsv
-```
 Run:
 ```
-python -m intelligrate.subset.cli --config configs/subset_ga.yaml
+intelligrate subset ga \
+  --cluster-table results/subset/kmedoids_clusters.tsv \
+  --metadata-table data/HF_sourdough/metadata.tsv \
+  --output-dir results/subset \
+  --total-samples 30 \
+  --balance-vars r_samp_country,r_samp_source \
+  --metadata-weights r_samp_country=1.0,r_samp_source=0.5 \
+  --latitude-col latitude \
+  --longitude-col longitude \
+  --population-size 10 \
+  --generations 3 \
+  --seed 42 \
+  --min-category-n 2 \
+  --min-per-category 2 \
+  --grid-weight 3.0 \
+  --distance-weight 2.0 \
+  --balance-weight 1.0 \
+  --balance-scale 1000.0 \
+  --hard-penalty-weight 100.0 \
+  --fixed-include configs/fixed_include.tsv
 ```
 Outputs:
 - `results/subset/ga_selected_samples.tsv`

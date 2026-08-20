@@ -29,11 +29,6 @@ def test_installed_console_script_help_commands():
     script_dir = Path(sys.executable).parent
     commands = [
         "intelligrate",
-        "intelligrate-extrapolate-train",
-        "intelligrate-extrapolate-full-fit",
-        "intelligrate-extrapolate-full-predict",
-        "intelligrate-extrapolate-fixed-param-sweep",
-        "intelligrate-subset",
     ]
 
     for command in commands:
@@ -54,7 +49,11 @@ def test_hierarchical_console_script_help_commands():
     commands = [
         [str(script), "--help"],
         [str(script), "subset", "--help"],
-        [str(script), "subset", "run", "--help"],
+        [str(script), "subset", "distance", "--help"],
+        [str(script), "subset", "suggest-k", "--help"],
+        [str(script), "subset", "kmedoids", "--help"],
+        [str(script), "subset", "ga", "--help"],
+        [str(script), "subset", "run-config", "--help"],
         [str(script), "extrapolate", "--help"],
         [str(script), "extrapolate", "train", "--help"],
         [str(script), "extrapolate", "fixed-param-sweep", "--help"],

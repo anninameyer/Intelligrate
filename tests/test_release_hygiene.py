@@ -62,11 +62,6 @@ def test_console_script_names_include_workflow_namespace():
 
     assert scripts == {
         "intelligrate": "intelligrate._cli:main",
-        "intelligrate-extrapolate-train": "intelligrate._cli:extrapolate_train",
-        "intelligrate-extrapolate-full-fit": "intelligrate._cli:extrapolate_full_fit",
-        "intelligrate-extrapolate-full-predict": "intelligrate._cli:extrapolate_full_predict",
-        "intelligrate-extrapolate-fixed-param-sweep": "intelligrate._cli:extrapolate_fixed_param_sweep",
-        "intelligrate-subset": "intelligrate._cli:subset",
     }
 
 

@@ -160,7 +160,10 @@ Installing `intelligrate` exposes a hierarchical command line interface:
 ```bash
 intelligrate --help
 intelligrate subset --help
-intelligrate subset run --config configs/subset_ga.yaml
+intelligrate subset distance --help
+intelligrate subset suggest-k --help
+intelligrate subset kmedoids --help
+intelligrate subset ga --help
 intelligrate extrapolate --help
 intelligrate extrapolate train --config configs/default.yaml
 intelligrate extrapolate fixed-param-sweep --config configs/default.yaml --out results/fixed_param_sweep.tsv
@@ -171,11 +174,6 @@ intelligrate extrapolate full-predict --help
 The same functionality is available through the Python API in the quickstarts below and in the
 example notebooks. If you are running a notebook-only example after `pip install intelligrate`, you
 do not need these CLI commands unless you prefer config-driven runs.
-
-Backward-compatible workflow-specific aliases are also installed:
-`intelligrate-subset`, `intelligrate-extrapolate-train`,
-`intelligrate-extrapolate-fixed-param-sweep`, `intelligrate-extrapolate-full-fit`, and
-`intelligrate-extrapolate-full-predict`.
 
 ## Quickstart: subset
 Full runnable example in the provided [Tutorials and notebooks](#tutorials-and-notebooks).
@@ -451,7 +449,7 @@ Training uses these parameter groups:
 - Runs a grid of **fixed‑parameter** OOF evaluations and ranks by `dm_union_strict` (no row‑dropping).
 - Use to find a single hyperparameter set that stays strong when fixed.
 - Add `fixed_param_sweep` to your config and run:
-  - `python -m intelligrate.extrapolate.fixed_param_sweep --config configs/default.yaml`
+  - `intelligrate extrapolate fixed-param-sweep --config configs/default.yaml`
 - Config block:
   - **Important:** if a parameter is **not** listed in `fixed_param_sweep`, the sweep will use
     the corresponding value from config. For parameters with a `*_grid` (e.g., `neigh_k_grid`),

@@ -139,7 +139,7 @@ Run with default config:
 ```
 make score
 # or
-python -m intelligrate.extrapolate.train --config configs/default.yaml
+intelligrate extrapolate train --config configs/default.yaml
 ```
 
 For config-driven runs, paths in the `data:` section are interpreted relative to `data/`.
@@ -225,7 +225,7 @@ To force a single value, list it explicitly in `fixed_param_sweep`.
 
 Run:
 ```
-python -m intelligrate.extrapolate.fixed_param_sweep --config configs/default.yaml --out results/fixed_param_sweep.tsv
+intelligrate extrapolate fixed-param-sweep --config configs/default.yaml --out results/fixed_param_sweep.tsv
 ```
 
 The output is a ranked table. Use the top row as your **fixed hyperparameter set** for
@@ -258,7 +258,7 @@ PY
 
 ### Step B — Fit the full model
 ```
-python -m intelligrate.extrapolate.full_fit \
+intelligrate extrapolate full-fit \
   --x data/HF_sourdough/X_kmers.tsv \
   --y data/HF_sourdough/Y_kos.tsv \
   --embed-path results/embed.joblib \
@@ -280,7 +280,7 @@ python -m intelligrate.extrapolate.full_fit \
 ## 3) Full predict (kmer‑only samples)
 Predict KOs for any k‑mer table (paired or unpaired):
 ```
-python -m intelligrate.extrapolate.full_predict \
+intelligrate extrapolate full-predict \
   --model results/model.joblib \
   --x data/HF_sourdough/X_kmers_full.tsv \
   --out-prefix results/pred
@@ -293,7 +293,7 @@ Outputs:
 ### Optional evaluation on paired subset
 If you also pass `--y-truth`, the same metrics as in `train` are computed:
 ```
-python -m intelligrate.extrapolate.full_predict \
+intelligrate extrapolate full-predict \
   --model results/model.joblib \
   --x data/HF_sourdough/X_kmers.tsv \
   --y-truth data/HF_sourdough/Y_kos.tsv \
