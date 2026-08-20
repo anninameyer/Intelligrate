@@ -61,6 +61,7 @@ def test_console_script_names_include_workflow_namespace():
     scripts = _read_pyproject()["project"]["scripts"]
 
     assert scripts == {
+        "intelligrate": "intelligrate._cli:main",
         "intelligrate-extrapolate-train": "intelligrate._cli:extrapolate_train",
         "intelligrate-extrapolate-full-fit": "intelligrate._cli:extrapolate_full_fit",
         "intelligrate-extrapolate-full-predict": "intelligrate._cli:extrapolate_full_predict",
@@ -148,10 +149,10 @@ def test_notebook_links_are_dataset_specific_and_existing():
     assert "02_extrapolate_train_evaluate_full_fit_predict.ipynb" not in readme
     for match in re.findall(r"\((docs/notebooks/[^)]+\.ipynb)\)", readme):
         assert (ROOT / match).exists(), f"Missing notebook linked from README: {match}"
-    assert "using `data/HF_sourdough/`" in readme
-    assert "using `data/hmp/`" in readme
-    assert "using `data/indian/`" in readme
-    assert "using `data/primates/`" in readme
+    assert "using [data/HF_sourdough/](data/HF_sourdough/)" in readme
+    assert "using [data/hmp/](data/hmp/)" in readme
+    assert "using [data/indian/](data/indian/)" in readme
+    assert "using [data/primates/](data/primates/)" in readme
 
 
 def test_notebooks_are_cleared_and_portable():

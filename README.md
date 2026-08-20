@@ -81,16 +81,16 @@ Check that Python can import the package:
 python -c "import intelligrate; print('intelligrate import OK')"
 ```
 
-Check that the workflow-specific command line tools are available:
+Check that the command line interface is available:
 ```bash
-intelligrate-subset --help
-intelligrate-extrapolate-train --help
-intelligrate-extrapolate-full-fit --help
-intelligrate-extrapolate-full-predict --help
+intelligrate --help
+intelligrate subset --help
+intelligrate extrapolate --help
+intelligrate extrapolate full-predict --help
 ```
 
-There is currently no top-level `intelligrate --help` command; use the workflow-specific commands
-above.
+The help output uses placeholders such as `PATH`, `TSV`, or `JOBLIB` to describe values you provide;
+do not type bracketed usage text such as `[-h]` literally.
 
 Optional map dependencies for geographic plots in the subset notebooks:
 ```bash
@@ -155,19 +155,27 @@ pip install -e ".[dev]"
 
 ## CLI entry points
 
-Installing `intelligrate` exposes these console commands:
+Installing `intelligrate` exposes a hierarchical command line interface:
 
 ```bash
-intelligrate-subset --config configs/subset_ga.yaml
-intelligrate-extrapolate-train --config configs/default.yaml
-intelligrate-extrapolate-fixed-param-sweep --config configs/default.yaml --out results/fixed_param_sweep.tsv
-intelligrate-extrapolate-full-fit --help
-intelligrate-extrapolate-full-predict --help
+intelligrate --help
+intelligrate subset --help
+intelligrate subset run --config configs/subset_ga.yaml
+intelligrate extrapolate --help
+intelligrate extrapolate train --config configs/default.yaml
+intelligrate extrapolate fixed-param-sweep --config configs/default.yaml --out results/fixed_param_sweep.tsv
+intelligrate extrapolate full-fit --help
+intelligrate extrapolate full-predict --help
 ```
 
 The same functionality is available through the Python API in the quickstarts below and in the
 example notebooks. If you are running a notebook-only example after `pip install intelligrate`, you
 do not need these CLI commands unless you prefer config-driven runs.
+
+Backward-compatible workflow-specific aliases are also installed:
+`intelligrate-subset`, `intelligrate-extrapolate-train`,
+`intelligrate-extrapolate-fixed-param-sweep`, `intelligrate-extrapolate-full-fit`, and
+`intelligrate-extrapolate-full-predict`.
 
 ## Quickstart: subset
 Full runnable example in the provided [Tutorials and notebooks](#tutorials-and-notebooks).

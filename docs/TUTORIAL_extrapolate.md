@@ -112,12 +112,13 @@ pip install intelligrate
 Verify the install:
 ```
 python -c "import intelligrate; print('intelligrate import OK')"
-intelligrate-extrapolate-train --help
-intelligrate-extrapolate-full-predict --help
+intelligrate --help
+intelligrate extrapolate --help
+intelligrate extrapolate full-predict --help
 ```
 
-There is currently no top-level `intelligrate --help` command; use the workflow-specific commands
-above.
+The help output uses placeholders such as `PATH`, `TSV`, or `JOBLIB` to describe values you provide;
+do not type bracketed usage text such as `[-h]` literally.
 
 To run this notebook from the same environment, also install a notebook interface:
 ```
