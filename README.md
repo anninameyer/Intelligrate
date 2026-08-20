@@ -42,11 +42,12 @@ Learn a mapping from a *starting layer* (e.g., amplicon marker gene k-mers) to a
 ## Install
 
 Install the Python package when you want to use `intelligrate` on your own data.
+Core Intelligrate is intended for Python 3.10-3.12 on macOS, Linux, and Windows.
 
 ### Choose an environment
 Recommended: create a dedicated environment, then install Intelligrate there.
 
-Using `venv`:
+Using `venv` on macOS/Linux:
 ```bash
 python -m venv intelligrate-env
 source intelligrate-env/bin/activate
@@ -54,7 +55,15 @@ python -m pip install --upgrade pip
 pip install intelligrate
 ```
 
-Using conda or mamba:
+Using `venv` on Windows PowerShell:
+```powershell
+py -m venv intelligrate-env
+.\intelligrate-env\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install intelligrate
+```
+
+Using conda or mamba on any platform:
 ```bash
 conda create -n intelligrate python=3.11
 conda activate intelligrate
@@ -69,6 +78,13 @@ pip install intelligrate
 Optional map dependencies for geographic plots in the subset notebooks:
 ```bash
 pip install "intelligrate[maps]"
+```
+If geospatial packages are difficult to install on your platform, create the environment with
+conda/mamba and install `geopandas` and `contextily` from conda-forge.
+
+To run the example notebooks from the same environment, also install a notebook interface there:
+```bash
+pip install notebook ipykernel
 ```
 
 ### From a GitHub tag

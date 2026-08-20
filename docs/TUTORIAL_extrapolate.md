@@ -78,9 +78,10 @@ paired `X`, full `X`, paired target `Y`, and optional baseline/mapping files.
 ---
 
 ## Installation
-Recommended: create a dedicated Python environment (venv or conda) with Python >= 3.10.
+Recommended: create a dedicated Python environment with Python 3.10-3.12. Core Intelligrate is
+intended for macOS, Linux, and Windows.
 
-Using `venv`:
+Using `venv` on macOS/Linux:
 ```
 python -m venv intelligrate-env
 source intelligrate-env/bin/activate
@@ -88,7 +89,15 @@ python -m pip install --upgrade pip
 pip install intelligrate
 ```
 
-Using conda or mamba:
+Using `venv` on Windows PowerShell:
+```
+py -m venv intelligrate-env
+.\intelligrate-env\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install intelligrate
+```
+
+Using conda or mamba on any platform:
 ```
 conda create -n intelligrate python=3.11
 conda activate intelligrate
@@ -98,6 +107,11 @@ pip install intelligrate
 If you already have a suitable Python environment active, install directly into it:
 ```
 pip install intelligrate
+```
+
+To run this notebook from the same environment, also install a notebook interface:
+```
+pip install notebook ipykernel
 ```
 
 For development only, clone the repository and install editable:

@@ -75,9 +75,10 @@ Choose one dataset folder first, then use the files inside it. The subset exampl
 ---
 
 ## Installation
-Recommended: create a dedicated Python >= 3.10 environment.
+Recommended: create a dedicated Python 3.10-3.12 environment. Core Intelligrate is intended for
+macOS, Linux, and Windows.
 
-Using `venv`:
+Using `venv` on macOS/Linux:
 ```
 python -m venv intelligrate-env
 source intelligrate-env/bin/activate
@@ -85,7 +86,15 @@ python -m pip install --upgrade pip
 pip install intelligrate
 ```
 
-Using conda or mamba:
+Using `venv` on Windows PowerShell:
+```
+py -m venv intelligrate-env
+.\intelligrate-env\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install intelligrate
+```
+
+Using conda or mamba on any platform:
 ```
 conda create -n intelligrate python=3.11
 conda activate intelligrate
@@ -97,6 +106,11 @@ If you already have a suitable Python environment active, install directly into 
 pip install intelligrate
 ```
 
+To run this notebook from the same environment, also install a notebook interface:
+```
+pip install notebook ipykernel
+```
+
 For development only, clone the repository and install editable:
 ```
 pip install -e .
@@ -106,6 +120,8 @@ Optional geographic map plots in the subset notebooks require extra geospatial d
 ```
 pip install "intelligrate[maps]"
 ```
+If geospatial packages are difficult to install on your platform, create the environment with
+conda/mamba and install `geopandas` and `contextily` from conda-forge.
 
 ---
 
