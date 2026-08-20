@@ -44,7 +44,7 @@ Learn a mapping from a *starting layer* (e.g., amplicon marker gene k-mers) to a
 Install the Python package when you want to use `intelligrate` on your own data.
 
 ### Choose an environment
-Recommended for a real analysis: create a dedicated environment, then install Intelligrate there.
+Recommended: create a dedicated environment, then install Intelligrate there.
 
 Using `venv`:
 ```bash

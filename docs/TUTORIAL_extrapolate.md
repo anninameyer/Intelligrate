@@ -78,7 +78,7 @@ paired `X`, full `X`, paired target `Y`, and optional baseline/mapping files.
 ---
 
 ## Installation
-Recommended: create a clean Python environment (venv or conda) with Python >= 3.10.
+Recommended: create a dedicated Python environment (venv or conda) with Python >= 3.10.
 
 Using `venv`:
 ```

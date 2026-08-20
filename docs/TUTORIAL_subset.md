@@ -75,7 +75,7 @@ Choose one dataset folder first, then use the files inside it. The subset exampl
 ---
 
 ## Installation
-Recommended: clean Python >= 3.10 environment.
+Recommended: create a dedicated Python >= 3.10 environment.
 
 Using `venv`:
 ```
