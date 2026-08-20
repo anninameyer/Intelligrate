@@ -44,8 +44,23 @@ It does this using:
 
 ## Inputs and outputs (at a glance)
 
-Example datasets live in subfolders under `data/`. Choose one dataset folder first, then use the
-files inside it. The subset example uses `data/HF_sourdough/`.
+Example datasets live in subfolders under `data/` in the GitHub repository. The pip package contains
+the `intelligrate` library code; notebooks and example data are downloaded separately. You can run
+the examples without cloning the full repository by downloading the notebook and the matching
+`data/<dataset>/` folder into one working folder, then starting Jupyter from that folder.
+
+Recommended layout for the subset example:
+```
+your_working_folder/
+  01_subset_kmedoids_ga_selection.ipynb
+  data/HF_sourdough/
+    feature_table_rel.tsv
+    metadata.tsv
+  results/
+```
+
+Choose one dataset folder first, then use the files inside it. The subset example uses
+`data/HF_sourdough/`.
 
 **Inputs (TSV)**
 - `data/HF_sourdough/feature_table_rel.tsv` — samples x features (relative abundance preferred)
@@ -62,9 +77,28 @@ files inside it. The subset example uses `data/HF_sourdough/`.
 ## Installation
 Recommended: clean Python >= 3.10 environment.
 
+Using `venv`:
+```
+python -m venv intelligrate-env
+source intelligrate-env/bin/activate
+python -m pip install --upgrade pip
+pip install intelligrate
+```
+
+Using conda or mamba:
+```
+conda create -n intelligrate python=3.11
+conda activate intelligrate
+pip install intelligrate
+```
+
+If you already have a suitable Python environment active, install directly into it:
 ```
 pip install intelligrate
-# or for development
+```
+
+For development only, clone the repository and install editable:
+```
 pip install -e .
 ```
 

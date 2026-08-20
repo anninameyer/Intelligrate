@@ -28,10 +28,11 @@ Learn a mapping from a *starting layer* (e.g., amplicon marker gene k-mers) to a
 
 ## Table of contents
 - [Install](#install)
+- [CLI entry points](#cli-entry-points)
 - [Quickstart: subset](#quickstart-subset)
 - [Quickstart: extrapolate](#quickstart-extrapolate)
 - [Tutorials and notebooks](#tutorials-and-notebooks)
-- [Input formats](#input-formats)
+- [Input table formats](#input-table-formats)
 - [Outputs](#outputs)
 - [Parameter guide](#parameter-guide)
 - [Release notes](#release-notes)
@@ -40,9 +41,27 @@ Learn a mapping from a *starting layer* (e.g., amplicon marker gene k-mers) to a
 
 ## Install
 
-Install the Python package when you want to use `intelligrate` on your own data:
+Install the Python package when you want to use `intelligrate` on your own data.
 
-### From PyPI
+### Choose an environment
+Recommended for a real analysis: create a dedicated environment, then install Intelligrate there.
+
+Using `venv`:
+```bash
+python -m venv intelligrate-env
+source intelligrate-env/bin/activate
+python -m pip install --upgrade pip
+pip install intelligrate
+```
+
+Using conda or mamba:
+```bash
+conda create -n intelligrate python=3.11
+conda activate intelligrate
+pip install intelligrate
+```
+
+If you already have a suitable Python environment active, install directly into it:
 ```bash
 pip install intelligrate
 ```
@@ -62,13 +81,60 @@ Optional map dependencies for geographic plots in the subset notebooks:
 pip install "intelligrate[maps] @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.0"
 ```
 
-The PyPI/package install contains the library code, not the example datasets or notebooks.
-Clone the GitHub repository if you want to run the tutorials with the bundled example data:
+The PyPI/package install contains the library code. Example notebooks, configs, and example data
+are kept in the GitHub repository so they can be downloaded separately.
+
+### Run examples without cloning
+You do not need to clone the full repository to run a tutorial. Create a working folder, install
+`intelligrate` in that environment, then download the notebook and the matching example data folder
+from GitHub.
+
+Recommended layout:
+```text
+your_working_folder/
+  02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough.ipynb
+  data/HF_sourdough/
+    X_kmers.tsv
+    X_kmers_full.tsv
+    Y_kos.tsv
+    picrust2_kos.tsv
+    ko_to_superclass.tsv
+  results/                         # created by notebooks/scripts
+```
+
+For the subset tutorial, use the same pattern with
+`01_subset_kmedoids_ga_selection.ipynb` and at least:
+```text
+data/HF_sourdough/feature_table_rel.tsv
+data/HF_sourdough/metadata.tsv
+```
+
+Start Jupyter from `your_working_folder/` and select the environment where you installed
+`intelligrate`.
+
+### Development install
+Clone only if you want to modify Intelligrate itself:
 ```bash
 git clone https://github.com/anninameyer/Intelligrate.git
 cd Intelligrate
 pip install -e ".[dev]"
 ```
+
+## CLI entry points
+
+Installing `intelligrate` exposes these console commands:
+
+```bash
+intelligrate-subset --config configs/subset_ga.yaml
+intelligrate-extrapolate-train --config configs/default.yaml
+intelligrate-extrapolate-fixed-param-sweep --config configs/default.yaml --out results/fixed_param_sweep.tsv
+intelligrate-extrapolate-full-fit --help
+intelligrate-extrapolate-full-predict --help
+```
+
+The same functionality is available through the Python API in the quickstarts below and in the
+example notebooks. If you are running a notebook-only example after `pip install intelligrate`, you
+do not need these CLI commands unless you prefer config-driven runs.
 
 ## Quickstart: subset
 Full runnable example in the provided [Tutorials and notebooks](#tutorials-and-notebooks).
@@ -186,27 +252,29 @@ Tutorials:
 - [Subset tutorial](docs/TUTORIAL_subset.md)
 - [Extrapolate tutorial](docs/TUTORIAL_extrapolate.md)
 
-Example notebooks are stored in `docs/notebooks/`. Each notebook uses one of the example dataset
-folders under `data/` and writes its outputs to a matching folder under `results/`.
+Example notebooks are stored in `docs/notebooks/`. Each notebook is designed to work with
+`pip install intelligrate`; it imports the installed package and expects the matching GitHub data
+folder under `data/` in the folder where Jupyter was started. Outputs go to a matching folder under
+`results/`.
 
 Subset notebooks:
-- [Subset with k-medoids + GA selection](docs/notebooks/01_subset_kmedoids_ga_selection.ipynb) using `data/HF_sourdough/`
-- [Subset with k-medoids + GA selection, 100 samples](docs/notebooks/01_subset_kmedoids_ga_selection_100_samples.ipynb) using `data/HF_sourdough/`
+- [Subset with k-medoids + GA selection](docs/notebooks/01_subset_kmedoids_ga_selection.ipynb) using [data/HF_sourdough/](data/HF_sourdough/)
+- [Subset with k-medoids + GA selection, 100 samples](docs/notebooks/01_subset_kmedoids_ga_selection_100_samples.ipynb) using [data/HF_sourdough/](data/HF_sourdough/)
 
 The geographic map section in the subset notebooks is optional and requires `geopandas` and
 `contextily`. Install with `pip install "intelligrate[maps]"` if you want those map plots.
 
 Extrapolate notebooks:
-- [HF sourdough KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough.ipynb) using `data/HF_sourdough/`
-- [HF sourdough KO extrapolation with custom PICRUSt2 database](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough_custom_picrust2_db.ipynb) using `data/HF_sourdough/`
-- [HF sourdough pathway extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough_pwys.ipynb) using `data/HF_sourdough/`
-- [HMP KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_hmp.ipynb) using `data/hmp/`
-- [HMP oral KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_hmp_oral.ipynb) using `data/hmp/`
-- [HMP stool KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_hmp_stool.ipynb) using `data/hmp/`
-- [Indian cohort KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_indian.ipynb) using `data/indian/`
-- [Indian cohort EC extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_indian_ecs.ipynb) using `data/indian/`
-- [Primates KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_primates.ipynb) using `data/primates/`
-- [Primates EC extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_primates_ecs.ipynb) using `data/primates/`
+- [HF sourdough KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough.ipynb) using [data/HF_sourdough/](data/HF_sourdough/)
+- [HF sourdough KO extrapolation with custom PICRUSt2 database](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough_custom_picrust2_db.ipynb) using [data/HF_sourdough/](data/HF_sourdough/)
+- [HF sourdough pathway extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough_pwys.ipynb) using [data/HF_sourdough/](data/HF_sourdough/)
+- [HMP KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_hmp.ipynb) using [data/hmp/](data/hmp/)
+- [HMP oral KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_hmp_oral.ipynb) using [data/hmp/](data/hmp/)
+- [HMP stool KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_hmp_stool.ipynb) using [data/hmp/](data/hmp/)
+- [Indian cohort KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_indian.ipynb) using [data/indian/](data/indian/)
+- [Indian cohort EC extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_indian_ecs.ipynb) using [data/indian/](data/indian/)
+- [Primates KO extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_primates.ipynb) using [data/primates/](data/primates/)
+- [Primates EC extrapolation](docs/notebooks/02_extrapolate_train_evaluate_full_fit_predict_primates_ecs.ipynb) using [data/primates/](data/primates/)
 
 ## Input table formats
 All inputs are TSV with:

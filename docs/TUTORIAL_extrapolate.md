@@ -34,9 +34,27 @@ It also reports OOD diagnostics (nearest‑neighbor distances to the training se
 
 ## Inputs and outputs
 
-Example datasets live in subfolders under `data/`. Choose one dataset folder first, then use the
-files inside it. For example, the sourdough example uses `data/HF_sourdough/`; other example
-folders include `data/hmp/`, `data/indian/`, and `data/primates/`.
+Example datasets live in subfolders under `data/` in the GitHub repository. The pip package contains
+the `intelligrate` library code; notebooks and example data are downloaded separately. You can run
+the examples without cloning the full repository by downloading the notebook and the matching
+`data/<dataset>/` folder into one working folder, then starting Jupyter from that folder.
+
+Recommended layout for the sourdough example:
+```
+your_working_folder/
+  02_extrapolate_train_evaluate_full_fit_predict_HF_sourdough.ipynb
+  data/HF_sourdough/
+    X_kmers.tsv
+    X_kmers_full.tsv
+    Y_kos.tsv
+    picrust2_kos.tsv
+    ko_to_superclass.tsv
+  results/
+```
+
+Choose one dataset folder first, then use the files inside it. For example, the sourdough example
+uses `data/HF_sourdough/`; other example folders include `data/hmp/`, `data/indian/`, and
+`data/primates/`.
 
 **Inputs (TSV)**
 - `data/HF_sourdough/X_kmers.tsv` — paired samples, k‑mer features (rows = samples, columns = k‑mers)
@@ -62,12 +80,27 @@ paired `X`, full `X`, paired target `Y`, and optional baseline/mapping files.
 ## Installation
 Recommended: create a clean Python environment (venv or conda) with Python >= 3.10.
 
-For end users (once published):
+Using `venv`:
+```
+python -m venv intelligrate-env
+source intelligrate-env/bin/activate
+python -m pip install --upgrade pip
+pip install intelligrate
+```
+
+Using conda or mamba:
+```
+conda create -n intelligrate python=3.11
+conda activate intelligrate
+pip install intelligrate
+```
+
+If you already have a suitable Python environment active, install directly into it:
 ```
 pip install intelligrate
 ```
 
-For development from the repo:
+For development only, clone the repository and install editable:
 ```
 pip install -e .
 ```
