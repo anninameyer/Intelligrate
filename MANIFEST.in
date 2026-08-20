@@ -7,3 +7,4 @@ recursive-exclude .github *
 recursive-exclude .agents *
 recursive-exclude .codex *
 recursive-exclude src *.egg-info
+recursive-include src/intelligrate/templates *.yaml *.tsv

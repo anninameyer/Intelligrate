@@ -86,6 +86,7 @@ Check that the command line interface is available:
 intelligrate --help
 intelligrate subset --help
 intelligrate extrapolate --help
+intelligrate extrapolate write-config --help
 intelligrate extrapolate full-predict --help
 ```
 
@@ -106,12 +107,12 @@ pip install notebook ipykernel
 
 ### From a GitHub tag
 ```bash
-pip install "intelligrate @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.1"
+pip install "intelligrate @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.2"
 ```
 
 Optional map dependencies for geographic plots in the subset notebooks:
 ```bash
-pip install "intelligrate[maps] @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.1"
+pip install "intelligrate[maps] @ git+https://github.com/anninameyer/Intelligrate.git@v0.1.2"
 ```
 
 The PyPI/package install contains the library code. Example notebooks, configs, and example data
@@ -160,16 +161,23 @@ Installing `intelligrate` exposes a hierarchical command line interface:
 ```bash
 intelligrate --help
 intelligrate subset --help
+intelligrate subset write-configs --out-dir configs
 intelligrate subset distance --help
 intelligrate subset suggest-k --help
 intelligrate subset kmedoids --help
 intelligrate subset ga --help
 intelligrate extrapolate --help
+intelligrate extrapolate write-config --out configs/default.yaml
 intelligrate extrapolate train --config configs/default.yaml
 intelligrate extrapolate fixed-param-sweep --config configs/default.yaml --out results/fixed_param_sweep.tsv
 intelligrate extrapolate full-fit --help
 intelligrate extrapolate full-predict --help
 ```
+
+For config-driven CLI runs, start by writing editable config templates from the installed package.
+Edit the input paths and parameters in the YAML files, then run the corresponding command. The
+example templates assume the same `data/...`, `configs/...`, and `results/...` layout used in this
+repository.
 
 The same functionality is available through the Python API in the quickstarts below and in the
 example notebooks. If you are running a notebook-only example after `pip install intelligrate`, you
@@ -501,5 +509,6 @@ For full explanations and runnable examples, see the [Tutorials and notebooks](#
 
 ## Release notes
 
+- [v0.1.2](docs/releases/v0.1.2.md): adds installed config templates and CLI template writers.
 - [v0.1.1](docs/releases/v0.1.1.md): pip-first notebooks, cross-platform install docs, and hierarchical CLI.
 - [v0.1.0](docs/releases/v0.1.0.md): first public PyPI release.

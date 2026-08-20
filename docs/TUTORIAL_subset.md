@@ -111,6 +111,7 @@ Verify the install:
 python -c "import intelligrate; print('intelligrate import OK')"
 intelligrate --help
 intelligrate subset --help
+intelligrate subset write-configs --help
 intelligrate subset distance --help
 intelligrate subset suggest-k --help
 intelligrate subset kmedoids --help
@@ -119,6 +120,15 @@ intelligrate subset ga --help
 
 The help output uses placeholders such as `PATH`, `TSV`, or `JOBLIB` to describe values you provide;
 do not type bracketed usage text such as `[-h]` literally.
+
+For config-driven CLI runs, write editable templates into your working folder:
+```
+intelligrate subset write-configs --out-dir configs
+```
+Then edit the YAML paths and parameters before running:
+```
+intelligrate subset run-config --config configs/subset_distance.yaml
+```
 
 To run this notebook from the same environment, also install a notebook interface:
 ```

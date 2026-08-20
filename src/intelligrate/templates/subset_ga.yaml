@@ -1,0 +1,31 @@
+mode: ga
+cluster_table: results/subset/kmedoids_clusters.tsv
+metadata_table: data/HF_sourdough/metadata.tsv
+output_dir: results/subset
+
+total_samples: 30
+
+balance_vars:
+  - r_samp_country
+  - r_samp_source
+
+metadata_weights:
+  r_samp_country: 1.0
+  r_samp_source: 0.5
+
+coord_vars: [latitude, longitude]
+
+population_size: 10
+generations: 3
+seed: 42
+
+min_category_n: 2
+min_per_category: 2
+
+grid_weight: 3.0
+distance_weight: 2.0
+balance_weight: 1.0
+balance_scale: 1000.0
+hard_penalty_weight: 100.0
+
+fixed_include: configs/fixed_include.tsv

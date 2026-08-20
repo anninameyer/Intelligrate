@@ -100,6 +100,14 @@ def test_manifest_excludes_examples_results_and_generated_metadata_from_distribu
     assert "recursive-exclude docs *" in lines
     assert "recursive-exclude results *" in lines
     assert "recursive-exclude src *.egg-info" in lines
+    assert "recursive-include src/intelligrate/templates *.yaml *.tsv" in lines
+
+
+def test_package_data_includes_installed_templates():
+    pyproject = _read_pyproject()
+    package_data = pyproject["tool"]["setuptools"]["package-data"]
+
+    assert package_data["intelligrate"] == ["templates/*.yaml", "templates/*.tsv"]
 
 
 def test_extrapolate_default_config_uses_existing_dataset_relative_paths():

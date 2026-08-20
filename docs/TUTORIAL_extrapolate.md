@@ -139,12 +139,17 @@ Run with default config:
 ```
 make score
 # or
+intelligrate extrapolate write-config --out configs/default.yaml
 intelligrate extrapolate train --config configs/default.yaml
 ```
 
 For config-driven runs, paths in the `data:` section are interpreted relative to `data/`.
 Use dataset-relative paths such as `HF_sourdough/X_kmers.tsv`,
 `hmp/X_ASVs.tsv`, `indian/X_ASVs.tsv`, or `primates/X_ASVs.tsv`.
+If you installed `intelligrate` with pip and did not clone the repository, use
+`intelligrate extrapolate write-config --out configs/default.yaml` to write an editable config
+template into your working folder. Then edit the paths under `data:` so they point to the example
+data folder you downloaded from GitHub or to your own tables.
 
 What you get in `results/`:
 - `oof_clr.tsv`, `oof_tss.tsv`
@@ -225,6 +230,7 @@ To force a single value, list it explicitly in `fixed_param_sweep`.
 
 Run:
 ```
+intelligrate extrapolate write-config --out configs/default.yaml
 intelligrate extrapolate fixed-param-sweep --config configs/default.yaml --out results/fixed_param_sweep.tsv
 ```
 

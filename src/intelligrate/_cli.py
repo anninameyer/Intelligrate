@@ -4,6 +4,7 @@ import argparse
 import importlib
 import json
 import sys
+from importlib import resources
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
@@ -71,6 +72,40 @@ def _parse_weights(value: str | None) -> dict[str, float] | None:
         key, raw_val = item.split("=", 1)
         weights[key.strip()] = float(raw_val)
     return weights
+
+
+def _write_template(template_name: str, out_path: str | Path, *, force: bool = False) -> Path:
+    out = Path(out_path)
+    if out.exists() and not force:
+        raise SystemExit(f"Refusing to overwrite existing file: {out}. Use --force to replace it.")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    template = resources.files("intelligrate").joinpath("templates").joinpath(template_name)
+    out.write_bytes(template.read_bytes())
+    return out
+
+
+def _handle_extrapolate_write_config(args: argparse.Namespace) -> None:
+    out = _write_template("extrapolate_default.yaml", args.out, force=bool(args.force))
+    print(f"Wrote extrapolate config template: {out}")
+    print("Edit the data paths and parameters, then run:")
+    print(f"  intelligrate extrapolate train --config {out}")
+
+
+def _handle_subset_write_configs(args: argparse.Namespace) -> None:
+    out_dir = Path(args.out_dir)
+    template_names = [
+        "subset_distance.yaml",
+        "subset_k.yaml",
+        "subset_kmedoids.yaml",
+        "subset_ga.yaml",
+        "fixed_include.tsv",
+    ]
+    written = [_write_template(name, out_dir / name, force=bool(args.force)) for name in template_names]
+    print("Wrote subset config templates:")
+    for path in written:
+        print(f"  {path}")
+    print("Edit the paths and parameters, then run a config step, for example:")
+    print(f"  intelligrate subset run-config --config {out_dir / 'subset_distance.yaml'}")
 
 
 def _handle_subset_distance(args: argparse.Namespace) -> None:
@@ -195,6 +230,7 @@ def build_subset_parser(prog: str = "intelligrate subset") -> argparse.ArgumentP
         "Select representative sample subsets using distance matrices, k-medoids, and a genetic algorithm.",
         epilog=(
             "Examples:\n"
+            "  intelligrate subset write-configs --out-dir configs\n"
             "  intelligrate subset distance --feature-table data/HF_sourdough/feature_table_rel.tsv --assume-relative\n"
             "  intelligrate subset suggest-k --feature-table data/HF_sourdough/feature_table_rel.tsv --distance-matrix results/subset/distance.tsv\n"
             "  intelligrate subset kmedoids --distance-matrix results/subset/distance.tsv --k 3\n"
@@ -203,6 +239,19 @@ def build_subset_parser(prog: str = "intelligrate subset") -> argparse.ArgumentP
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {_package_version()}")
     subparsers = parser.add_subparsers(dest="action", metavar="COMMAND")
+
+    write_configs = subparsers.add_parser(
+        "write-configs",
+        help="Write editable subset YAML config templates.",
+        description=(
+            "Write editable subset config templates to a directory. These templates contain the "
+            "same default values as the repository examples and are useful after pip installation."
+        ),
+        formatter_class=_Formatter,
+    )
+    write_configs.add_argument("--out-dir", default="configs", metavar="DIR", help="Directory to write templates into.")
+    write_configs.add_argument("--force", action="store_true", help="Overwrite existing template files.")
+    write_configs.set_defaults(_handler=_handle_subset_write_configs)
 
     distance = subparsers.add_parser(
         "distance",
@@ -344,6 +393,7 @@ def build_extrapolate_parser(prog: str = "intelligrate extrapolate") -> argparse
         "Train and use models that extrapolate follow-up profiles from starting-layer features.",
         epilog=(
             "Examples:\n"
+            "  intelligrate extrapolate write-config --out configs/default.yaml\n"
             "  intelligrate extrapolate train --config configs/default.yaml\n"
             "  intelligrate extrapolate fixed-param-sweep --config configs/default.yaml\n"
             "  intelligrate extrapolate full-fit --x data/HF_sourdough/X_kmers.tsv --y data/HF_sourdough/Y_kos.tsv \\\n"
@@ -355,12 +405,35 @@ def build_extrapolate_parser(prog: str = "intelligrate extrapolate") -> argparse
     parser.add_argument("--version", action="version", version=f"%(prog)s {_package_version()}")
     subparsers = parser.add_subparsers(dest="action", metavar="COMMAND")
 
+    write_config = subparsers.add_parser(
+        "write-config",
+        help="Write an editable extrapolate YAML config template.",
+        description=(
+            "Write an editable extrapolate config template. The template contains default values "
+            "for data paths, cross-validation, embedding, model grids, objective weights, metrics, "
+            "and fixed-parameter sweeps."
+        ),
+        formatter_class=_Formatter,
+    )
+    write_config.add_argument(
+        "--out",
+        default="configs/default.yaml",
+        metavar="PATH",
+        help="Output YAML path for the template config.",
+    )
+    write_config.add_argument("--force", action="store_true", help="Overwrite an existing config file.")
+    write_config.set_defaults(_handler=_handle_extrapolate_write_config)
+
     train = subparsers.add_parser(
         "train",
         help="Run nested-CV training and write OOF predictions and metrics.",
         description=(
             "Run leakage-aware nested CV from a YAML config. Outputs include OOF CLR/TSS "
             "predictions, fold metrics, and summary files under results/.\n\n"
+            "Start from the installed template:\n"
+            "  intelligrate extrapolate write-config --out configs/default.yaml\n"
+            "Then edit the data paths and parameters in that YAML file and run:\n"
+            "  intelligrate extrapolate train --config configs/default.yaml\n\n"
             "Key config sections and fields:\n"
             "  data      x_full, x, y, optional picrust2, optional ko_to_superclass\n"
             "  cv        outer_splits, inner_splits, seed, informed_splits\n"
@@ -386,6 +459,8 @@ def build_extrapolate_parser(prog: str = "intelligrate extrapolate") -> argparse
         description=(
             "Run a fixed-parameter sweep from the config's fixed_param_sweep block. "
             "Use this to choose one stable hyperparameter set before full fitting.\n\n"
+            "Start from the installed template if you do not already have a config:\n"
+            "  intelligrate extrapolate write-config --out configs/default.yaml\n\n"
             "Common fixed_param_sweep fields:\n"
             "  neigh_k, tau_mult, y_latent_k, metric_ridge, lam,\n"
             "  min_prev_y_abs, y_detect_threshold, pseudocount_y,\n"
@@ -499,6 +574,7 @@ def build_root_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  intelligrate subset --help\n"
+            "  intelligrate extrapolate write-config --out configs/default.yaml\n"
             "  intelligrate subset distance --feature-table data/HF_sourdough/feature_table_rel.tsv --assume-relative\n"
             "  intelligrate extrapolate --help\n"
             "  intelligrate extrapolate train --config configs/default.yaml"

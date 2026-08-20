@@ -25,12 +25,12 @@ Use API tokens for upload. Do not commit tokens, `.pypirc` files, or passwords.
 
 ## Build
 
-Remove old local artifacts, then build fresh source and wheel distributions:
+Set the version for this release, then build source and wheel distributions:
 
 ```bash
-rm -rf dist build src/*.egg-info
+VERSION=0.1.2
 python -m build
-python -m twine check dist/*
+python -m twine check dist/intelligrate-${VERSION}*
 ```
 
 Expected artifacts:
@@ -47,7 +47,7 @@ The version in the filenames changes when `project.version` changes.
 Upload to TestPyPI first:
 
 ```bash
-python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/intelligrate-${VERSION}*
 ```
 
 When prompted:
@@ -69,7 +69,7 @@ python -m venv .tmp-testpypi-install
 .tmp-testpypi-install/bin/python -m pip install \
   --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple/ \
-  intelligrate==0.1.1
+  intelligrate==0.1.2
 ```
 
 Verify imports and installed commands:
@@ -77,6 +77,8 @@ Verify imports and installed commands:
 ```bash
 .tmp-testpypi-install/bin/python -c "import intelligrate; print(intelligrate.__file__)"
 .tmp-testpypi-install/bin/intelligrate --help
+.tmp-testpypi-install/bin/intelligrate extrapolate write-config --help
+.tmp-testpypi-install/bin/intelligrate subset write-configs --help
 .tmp-testpypi-install/bin/intelligrate subset distance --help
 .tmp-testpypi-install/bin/intelligrate subset ga --help
 .tmp-testpypi-install/bin/intelligrate extrapolate train --help
@@ -88,8 +90,8 @@ Verify imports and installed commands:
 After TestPyPI succeeds, create and push a matching Git tag:
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 Use the version from `pyproject.toml`.
@@ -99,7 +101,7 @@ Use the version from `pyproject.toml`.
 Upload the same already-checked artifacts to PyPI:
 
 ```bash
-python -m twine upload dist/*
+python -m twine upload dist/intelligrate-${VERSION}*
 ```
 
 When prompted:

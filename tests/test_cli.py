@@ -49,12 +49,14 @@ def test_hierarchical_console_script_help_commands():
     commands = [
         [str(script), "--help"],
         [str(script), "subset", "--help"],
+        [str(script), "subset", "write-configs", "--help"],
         [str(script), "subset", "distance", "--help"],
         [str(script), "subset", "suggest-k", "--help"],
         [str(script), "subset", "kmedoids", "--help"],
         [str(script), "subset", "ga", "--help"],
         [str(script), "subset", "run-config", "--help"],
         [str(script), "extrapolate", "--help"],
+        [str(script), "extrapolate", "write-config", "--help"],
         [str(script), "extrapolate", "train", "--help"],
         [str(script), "extrapolate", "fixed-param-sweep", "--help"],
         [str(script), "extrapolate", "full-fit", "--help"],
@@ -70,3 +72,35 @@ def test_hierarchical_console_script_help_commands():
         )
         assert result.returncode == 0, result.stderr
         assert "usage:" in result.stdout.lower()
+
+
+def test_hierarchical_cli_writes_config_templates(tmp_path):
+    script = Path(sys.executable).parent / "intelligrate"
+
+    extrapolate_config = tmp_path / "configs" / "default.yaml"
+    result = subprocess.run(
+        [str(script), "extrapolate", "write-config", "--out", str(extrapolate_config)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert extrapolate_config.exists()
+    config_text = extrapolate_config.read_text()
+    assert "intelligrate extrapolate train" in result.stdout
+    assert "x_full:" in config_text
+    assert "fixed_param_sweep:" in config_text
+
+    subset_dir = tmp_path / "subset-configs"
+    result = subprocess.run(
+        [str(script), "subset", "write-configs", "--out-dir", str(subset_dir)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (subset_dir / "subset_distance.yaml").exists()
+    assert (subset_dir / "subset_k.yaml").exists()
+    assert (subset_dir / "subset_kmedoids.yaml").exists()
+    assert (subset_dir / "subset_ga.yaml").exists()
+    assert (subset_dir / "fixed_include.tsv").exists()
